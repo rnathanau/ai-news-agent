@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Test Digest Data</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Digest Data Debugger</h1>
+    <button onclick="testDigest()" class="bg-blue-600 text-white px-4 py-2 rounded mb-4">
+      Test Latest Digest
+    </button>
+    <pre id="output" class="bg-white p-4 rounded border overflow-auto"></pre>
+  </div>
+
+  <script>
+    async function testDigest() {
+      const output = document.getElementById('output');
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        output.textContent = 'ERROR: Not logged in. Please log in first at /auth.html';
+        return;
+      }
+      
+      try {
+        output.textContent = 'Fetching latest digest...';
+        
+        const response = await fetch('/api/digests/latest', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const digest = await response.json();
+        
+        // Pretty print the digest data
+        output.textContent = JSON.stringify(digest, null, 2);
+        
+        // Check for URLs
+        console.log('Checking articles for URLs:');
+        if (digest.articles && digest.articles.length > 0) {
+          digest.articles.forEach((article, idx) => {
+            console.log(`Article ${idx + 1}:`, {
+              title: article.title,
+              url: article.url,
+              source: article.source,
+              hasUrl: !!article.url
+            });
+          });
+        } else {
+          console.log('No articles found in digest');
+        }
+        
+      } catch (error) {
+        output.textContent = 'ERROR: ' + error.message;
+        console.error('Test failed:', error);
+      }
+    }
+  </script>
+</body>
+</html>
+
