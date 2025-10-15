@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Test Tavily API</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Tavily API Test</h1>
+    
+    <div class="bg-white p-6 rounded-lg shadow mb-4">
+      <label class="block mb-2 font-medium">Test Location:</label>
+      <input id="location" type="text" value="Brooklyn, New York" 
+             class="w-full px-4 py-2 border rounded mb-4" />
+      
+      <button onclick="testTavily()" 
+              class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+        Test Tavily Search
+      </button>
+    </div>
+    
+    <div id="status" class="bg-yellow-50 border border-yellow-200 p-4 rounded mb-4 hidden"></div>
+    <pre id="output" class="bg-white p-4 rounded border overflow-auto max-h-96"></pre>
+  </div>
+
+  <script>
+    async function testTavily() {
+      const output = document.getElementById('output');
+      const status = document.getElementById('status');
+      const location = document.getElementById('location').value;
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        output.textContent = 'ERROR: Not logged in. Please log in first at /auth.html';
+        return;
+      }
+      
+      status.classList.remove('hidden');
+      status.textContent = '⏳ Testing Tavily API... (may take 5-10 seconds)';
+      output.textContent = 'Generating digest to test Tavily...';
+      
+      try {
+        // Generate a digest which will use Tavily
+        const response = await fetch('/api/digests/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ location: location })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const digest = await response.json();
+        
+        // Check articles
+        const articles = digest.articles || [];
+        
+        let result = '=== TAVILY TEST RESULTS ===\n\n';
+        result += `Location tested: ${location}\n`;
+        result += `Articles found: ${articles.length}\n\n`;
+        
+        if (articles.length > 0) {
+          const hasRealUrls = articles.some(a => 
+            a.url && !a.url.includes('localnews.example.com')
+          );
+          
+          const source = articles[0]?.found_via || 'unknown';
+          
+          result += `Source: ${source}\n`;
+          result += `Real URLs: ${hasRealUrls ? '✅ YES' : '❌ NO (using fallback)'}\n\n`;
+          
+          result += '=== ARTICLES ===\n\n';
+          articles.forEach((article, idx) => {
+            result += `${idx + 1}. ${article.title || 'No title'}\n`;
+            result += `   URL: ${article.url || 'No URL'}\n`;
+            result += `   Source: ${article.source || 'No source'}\n`;
+            result += `   Via: ${article.found_via || 'unknown'}\n\n`;
+          });
+          
+          if (hasRealUrls) {
+            status.className = 'bg-green-50 border border-green-200 p-4 rounded mb-4';
+            status.textContent = '✅ SUCCESS! Tavily is working and returning real URLs!';
+          } else {
+            status.className = 'bg-red-50 border border-red-200 p-4 rounded mb-4';
+            status.textContent = '❌ Tavily not working - using fallback. Check Render logs for errors.';
+          }
+        } else {
+          result += 'No articles found.\n';
+          status.className = 'bg-red-50 border border-red-200 p-4 rounded mb-4';
+          status.textContent = '❌ No articles returned. Try a different location.';
+        }
+        
+        output.textContent = result;
+        
+      } catch (error) {
+        output.textContent = 'ERROR: ' + error.message;
+        status.className = 'bg-red-50 border border-red-200 p-4 rounded mb-4';
+        status.textContent = '❌ Test failed: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>
+
