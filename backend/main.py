@@ -313,6 +313,7 @@ def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any
     tavily_key = os.getenv("TAVILY_API_KEY")
     if tavily_key:
         try:
+            print(f"[Tavily] Searching for: {query}")
             with httpx.Client(timeout=SEARCH_TIMEOUT) as client:
                 resp = client.post(
                     "https://api.tavily.com/search",
@@ -324,8 +325,12 @@ def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any
                         "include_answer": False,
                     },
                 )
+                print(f"[Tavily] Response status: {resp.status_code}")
                 resp.raise_for_status()
                 data = resp.json()
+                
+                results_count = len(data.get("results", []))
+                print(f"[Tavily] Found {results_count} results")
                 
                 articles = []
                 for item in data.get("results", []):
@@ -336,10 +341,17 @@ def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any
                         "source": item.get("url", "").split("/")[2] if item.get("url") else "Unknown",
                         "published_at": item.get("published_date")
                     })
+                
+                if articles:
+                    print(f"[Tavily] Returning {len(articles)} articles")
+                    print(f"[Tavily] First article: {articles[0].get('title', 'No title')}")
                 return articles
         except Exception as e:
-            print(f"Tavily API error: {e}")
+            print(f"[Tavily] API error: {e}")
+            print(f"[Tavily] Error type: {type(e).__name__}")
             pass  # Fail gracefully, try next option
+    else:
+        print("[Tavily] No API key found in environment")
     
     return []
 
