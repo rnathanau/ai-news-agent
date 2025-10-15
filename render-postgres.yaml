@@ -1,11 +1,17 @@
+# Render Blueprint with PostgreSQL (Paid Tier - $14/month)
+# Use this for production with persistent data
+
+databases:
+  - name: ai-news-agent-db
+    databaseName: newsagent
+    user: newsagent
+    plan: starter  # $7/month for persistent PostgreSQL
+
 services:
-  # FastAPI Web Application (SQLite - No PostgreSQL required)
-  # NOTE: Free tier = ephemeral storage (data lost on redeploy)
-  # For persistent data, use render-postgres.yaml or upgrade to paid tier
   - type: web
     name: ai-news-agent
     env: python
-    plan: free
+    plan: starter  # $7/month for always-on service
     rootDir: backend
     buildCommand: |
       pip install --upgrade pip
@@ -25,7 +31,11 @@ services:
       # Required: Security
       - key: SECRET_KEY
         generateValue: true
-      # Database - defaults to SQLite (no DATABASE_URL needed)
+      # Database (auto-connected from PostgreSQL above)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-news-agent-db
+          property: connectionString
       # Optional: Email notifications
       - key: SENDGRID_API_KEY
         sync: false
