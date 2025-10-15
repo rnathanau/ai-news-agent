@@ -5,13 +5,13 @@ databases:
   - name: ai-news-agent-db
     databaseName: newsagent
     user: newsagent
-    plan: starter  # $7/month for persistent PostgreSQL
+    plan: standard  # $7/month for persistent PostgreSQL
 
 services:
   - type: web
     name: ai-news-agent
     env: python
-    plan: starter  # $7/month for always-on service
+    plan: standard  # $7/month for always-on service
     rootDir: backend
     buildCommand: |
       pip install --upgrade pip
