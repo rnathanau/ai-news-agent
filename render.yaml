@@ -1,4 +1,13 @@
+databases:
+  # PostgreSQL Database
+  - name: ai-news-agent-db
+    databaseName: newsagent
+    user: newsagent
+    plan: free
+
 services:
+
+  # FastAPI Web Application
   - type: web
     name: ai-news-agent
     env: python
@@ -22,9 +31,11 @@ services:
       # Required: Security
       - key: SECRET_KEY
         generateValue: true
-      # Required: Database (Render will provide this if you add PostgreSQL)
+      # Required: Database (automatically connected from pserv above)
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: ai-news-agent-db
+          property: connectionString
       # Optional: Email notifications
       - key: SENDGRID_API_KEY
         sync: false
