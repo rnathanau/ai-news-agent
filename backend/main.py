@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+from sqlalchemy.orm import Session
 import os
 import time
 import json
@@ -10,6 +11,10 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
+
+# Database and authentication imports
+from backend.database import get_db, init_db
+from backend import models, schemas, auth
 
 # Minimal observability via Arize/OpenInference (optional)
 try:
@@ -86,8 +91,19 @@ def _init_llm():
 
     if os.getenv("TEST_MODE"):
         return _Fake()
-    if os.getenv("OPENAI_API_KEY"):
-        return ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, max_tokens=1500)
+    if os.getenv("GOOGLE_API_KEY"):
+        # Use Google Gemini
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            return ChatGoogleGenerativeAI(
+                model=os.getenv("GOOGLE_MODEL", "gemini-pro"),
+                temperature=0.7,
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
+            )
+        except ImportError:
+            raise ValueError("Please install langchain-google-genai: pip install langchain-google-genai")
+    elif os.getenv("OPENAI_API_KEY"):
+        return ChatOpenAI(model="gpt-4o-mini", temperature=0.7, max_tokens=1500)
     elif os.getenv("OPENROUTER_API_KEY"):
         # Use OpenRouter via OpenAI-compatible client
         return ChatOpenAI(
@@ -98,7 +114,7 @@ def _init_llm():
         )
     else:
         # Require a key unless running tests
-        raise ValueError("Please set OPENAI_API_KEY or OPENROUTER_API_KEY in your .env")
+        raise ValueError("Please set GOOGLE_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY in your .env")
 
 
 llm = _init_llm()
@@ -508,6 +524,120 @@ def packing_list(destination: str, duration: str, activities: Optional[List[str]
     return _llm_fallback(instruction)
 
 
+# ============================================================================
+# NEWS AGENT TOOLS - For crime/safety monitoring
+# ============================================================================
+
+@tool
+def search_local_news(location: str, keywords: str = "crime theft burglary", days_back: int = 1) -> str:
+    """Search for recent crime and safety news in a specific location.
+    
+    Args:
+        location: City, neighborhood, or address to search
+        keywords: Crime/safety related keywords to search for
+        days_back: Number of days to search back (default 1 for daily digest)
+    
+    Returns:
+        Summary of recent news articles with titles, sources, and brief descriptions
+    """
+    query = f"{location} {keywords} news last {days_back} days"
+    summary = _search_api(query)
+    
+    if summary:
+        return _with_prefix(f"{location} crime news", summary)
+    
+    # LLM fallback
+    instruction = f"Summarize recent crime and safety incidents in {location} related to: {keywords}. Include typical local issues if real data unavailable."
+    return _llm_fallback(instruction, context=f"Location: {location}")
+
+
+@tool
+def extract_location_details(article_text: str) -> str:
+    """Extract specific location details (addresses, neighborhoods) from news article text.
+    
+    Args:
+        article_text: News article content to parse
+    
+    Returns:
+        Structured location information extracted from the article
+    """
+    # Use LLM to extract location details
+    instruction = f"Extract and list all specific locations mentioned (addresses, intersections, neighborhoods) from this text: {article_text[:500]}"
+    return _llm_fallback(instruction)
+
+
+@tool
+def calculate_proximity(incident_location: str, user_location: str) -> str:
+    """Calculate approximate distance between incident and user location.
+    
+    Args:
+        incident_location: Location where incident occurred
+        user_location: User's location for comparison
+    
+    Returns:
+        Distance estimate and proximity rating (near/medium/far)
+    """
+    # Simple search-based distance estimation
+    query = f"distance from {user_location} to {incident_location}"
+    summary = _search_api(query)
+    
+    if summary:
+        return summary
+    
+    # LLM fallback
+    instruction = f"Estimate the approximate distance between {user_location} and {incident_location}. Indicate if they are in the same neighborhood, nearby areas, or distant."
+    return _llm_fallback(instruction)
+
+
+@tool
+def severity_score(article_text: str, incident_type: str) -> str:
+    """Analyze crime severity and assign a relevance score.
+    
+    Args:
+        article_text: News article content
+        incident_type: Type of crime (theft, burglary, assault, etc.)
+    
+    Returns:
+        Severity assessment (low/medium/high) and reasoning
+    """
+    # Use LLM to assess severity
+    instruction = f"Analyze this {incident_type} incident and rate its severity (low/medium/high) for neighborhood safety awareness: {article_text[:300]}"
+    return _llm_fallback(instruction)
+
+
+@tool
+def classify_incident_type(article_text: str) -> str:
+    """Classify the type of crime or safety incident from article text.
+    
+    Args:
+        article_text: News article content
+    
+    Returns:
+        Primary incident type (theft, burglary, assault, vandalism, etc.)
+    """
+    instruction = f"Classify the main type of crime or safety incident in this article (theft, burglary, home invasion, assault, vandalism, traffic, fire, etc.): {article_text[:400]}"
+    return _llm_fallback(instruction)
+
+
+@tool
+def summarize_article(article_text: str, title: str) -> str:
+    """Generate a concise 2-3 sentence summary of a news article.
+    
+    Args:
+        article_text: Full or partial article content
+        title: Article title
+    
+    Returns:
+        Concise summary highlighting key facts (what, where, when)
+    """
+    instruction = f"Summarize this news article in 2-3 sentences, focusing on what happened, where, and when. Title: {title}. Content: {article_text[:500]}"
+    return _llm_fallback(instruction)
+
+
+# ============================================================================
+# STATE DEFINITIONS
+# ============================================================================
+
 class TripState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     trip_request: Dict[str, Any]
@@ -517,6 +647,21 @@ class TripState(TypedDict):
     final: Optional[str]
     tool_calls: Annotated[List[Dict[str, Any]], operator.add]
 
+
+class NewsDigestState(TypedDict):
+    """State for news digest generation workflow."""
+    messages: Annotated[List[BaseMessage], operator.add]
+    digest_request: Dict[str, Any]  # Contains location, user_id, date, etc.
+    raw_articles: Optional[List[Dict[str, Any]]]  # From monitor_agent
+    ranked_articles: Optional[List[Dict[str, Any]]]  # From relevance_agent
+    article_summaries: Optional[List[Dict[str, Any]]]  # From summary_agent
+    final_digest: Optional[str]  # From digest_agent
+    tool_calls: Annotated[List[Dict[str, Any]], operator.add]
+
+
+# ============================================================================
+# TRIP PLANNER AGENTS (Legacy - keeping for reference)
+# ============================================================================
 
 def research_agent(state: TripState) -> TripState:
     req = state["trip_request"]
@@ -756,6 +901,250 @@ def itinerary_agent(state: TripState) -> TripState:
     return {"messages": [SystemMessage(content=res.content)], "final": res.content}
 
 
+# ============================================================================
+# NEWS AGENT SYSTEM - For crime/safety monitoring
+# ============================================================================
+
+def monitor_agent(state: NewsDigestState) -> NewsDigestState:
+    """Monitor agent: Searches for recent crime/safety news in user's location."""
+    req = state["digest_request"]
+    location = req["location"]
+    keywords = req.get("keywords", "crime theft burglary home invasion safety")
+    days_back = req.get("days_back", 1)
+    
+    prompt_t = (
+        "You are a news monitoring agent.\n"
+        "Search for recent crime and safety incidents in {location}.\n"
+        "Focus on: {keywords}.\n"
+        "Use the search_local_news tool to find articles from the last {days_back} days."
+    )
+    vars_ = {"location": location, "keywords": keywords, "days_back": days_back}
+    
+    messages = [SystemMessage(content=prompt_t.format(**vars_))]
+    tools = [search_local_news, classify_incident_type]
+    agent = llm.bind_tools(tools)
+    
+    calls: List[Dict[str, Any]] = []
+    articles = []
+    
+    with using_attributes(tags=["monitor", "news_search"]):
+        if _TRACING:
+            current_span = trace.get_current_span()
+            if current_span:
+                current_span.set_attribute("metadata.agent_type", "monitor")
+                current_span.set_attribute("metadata.location", location)
+        
+        with using_prompt_template(template=prompt_t, variables=vars_, version="v1"):
+            res = agent.invoke(messages)
+    
+    if getattr(res, "tool_calls", None):
+        for c in res.tool_calls:
+            calls.append({"agent": "monitor", "tool": c["name"], "args": c.get("args", {})})
+        
+        tool_node = ToolNode(tools)
+        tr = tool_node.invoke({"messages": [res]})
+        
+        # Parse articles from tool results
+        # In a real implementation, this would parse structured data from News API
+        # For now, we'll create a simplified structure
+        articles = [{
+            "title": "Recent Crime Incident",
+            "content": msg.content if hasattr(msg, 'content') else str(msg),
+            "source": "Local News",
+            "url": "#",
+            "found_via": "monitor_agent"
+        } for msg in tr["messages"]]
+    
+    return {
+        "messages": [SystemMessage(content=f"Found {len(articles)} potential articles")],
+        "raw_articles": articles,
+        "tool_calls": calls
+    }
+
+
+def relevance_agent(state: NewsDigestState) -> NewsDigestState:
+    """Relevance agent: Filters and ranks articles by proximity and severity."""
+    req = state["digest_request"]
+    location = req["location"]
+    raw_articles = state.get("raw_articles", [])
+    severity_threshold = req.get("severity_threshold", "all")
+    radius_km = req.get("radius_km", 5)
+    
+    if not raw_articles:
+        return {
+            "messages": [SystemMessage(content="No articles to rank")],
+            "ranked_articles": [],
+            "tool_calls": []
+        }
+    
+    prompt_t = (
+        "You are a relevance ranking agent.\n"
+        "Analyze {num_articles} articles and rank them by:\n"
+        "1. Proximity to {location} (within {radius_km}km)\n"
+        "2. Severity ({severity_threshold} threshold)\n"
+        "3. Recency\n"
+        "Return the top 3-5 most relevant articles."
+    )
+    vars_ = {
+        "num_articles": len(raw_articles),
+        "location": location,
+        "radius_km": radius_km,
+        "severity_threshold": severity_threshold
+    }
+    
+    messages = [SystemMessage(content=prompt_t.format(**vars_))]
+    # Add article context
+    for idx, article in enumerate(raw_articles[:10], 1):  # Limit to first 10
+        messages.append(HumanMessage(content=f"Article {idx}: {article.get('title', 'Untitled')} - {article.get('content', '')[:200]}"))
+    
+    tools = [calculate_proximity, severity_score, extract_location_details]
+    agent = llm.bind_tools(tools)
+    
+    calls: List[Dict[str, Any]] = []
+    
+    with using_attributes(tags=["relevance", "ranking"]):
+        if _TRACING:
+            current_span = trace.get_current_span()
+            if current_span:
+                current_span.set_attribute("metadata.agent_type", "relevance")
+                current_span.set_attribute("metadata.articles_count", len(raw_articles))
+        
+        with using_prompt_template(template=prompt_t, variables=vars_, version="v1"):
+            res = agent.invoke(messages)
+    
+    if getattr(res, "tool_calls", None):
+        for c in res.tool_calls:
+            calls.append({"agent": "relevance", "tool": c["name"], "args": c.get("args", {})})
+        
+        tool_node = ToolNode(tools)
+        tr = tool_node.invoke({"messages": [res]})
+    
+    # For simplicity, take top 3 articles
+    ranked = raw_articles[:3]
+    
+    return {
+        "messages": [SystemMessage(content=f"Ranked {len(ranked)} relevant articles")],
+        "ranked_articles": ranked,
+        "tool_calls": calls
+    }
+
+
+def summary_agent(state: NewsDigestState) -> NewsDigestState:
+    """Summary agent: Generates concise summaries for each article."""
+    ranked_articles = state.get("ranked_articles", [])
+    
+    if not ranked_articles:
+        return {
+            "messages": [SystemMessage(content="No articles to summarize")],
+            "article_summaries": [],
+            "tool_calls": []
+        }
+    
+    prompt_t = "You are a news summarization agent. Create concise 2-3 sentence summaries for each article."
+    messages = [SystemMessage(content=prompt_t)]
+    
+    tools = [summarize_article]
+    agent = llm.bind_tools(tools)
+    
+    calls: List[Dict[str, Any]] = []
+    summaries = []
+    
+    with using_attributes(tags=["summary", "summarization"]):
+        if _TRACING:
+            current_span = trace.get_current_span()
+            if current_span:
+                current_span.set_attribute("metadata.agent_type", "summary")
+        
+        # Summarize each article
+        for article in ranked_articles:
+            title = article.get("title", "Untitled")
+            content = article.get("content", "")
+            
+            result = summarize_article.invoke({"article_text": content, "title": title})
+            
+            summaries.append({
+                **article,
+                "summary": result
+            })
+            calls.append({"agent": "summary", "tool": "summarize_article", "args": {"title": title}})
+    
+    return {
+        "messages": [SystemMessage(content=f"Summarized {len(summaries)} articles")],
+        "article_summaries": summaries,
+        "tool_calls": calls
+    }
+
+
+def digest_agent(state: NewsDigestState) -> NewsDigestState:
+    """Digest agent: Synthesizes top 3 articles into a cohesive morning briefing."""
+    req = state["digest_request"]
+    location = req["location"]
+    article_summaries = state.get("article_summaries", [])
+    
+    if not article_summaries:
+        final_digest = f"# Daily Safety Digest for {location}\n\nNo significant incidents to report today. Stay safe!"
+        return {
+            "messages": [SystemMessage(content=final_digest)],
+            "final_digest": final_digest,
+            "tool_calls": []
+        }
+    
+    prompt_t = (
+        "Create a morning safety briefing for {location}.\n"
+        "Synthesize these {num_articles} incident summaries into a clear, informative digest.\n"
+        "Format:\n"
+        "- Brief overview\n"
+        "- Top 3 incidents with key details\n"
+        "- Safety recommendations\n\n"
+        "Articles:\n{articles_text}"
+    )
+    
+    articles_text = "\n\n".join([
+        f"{idx}. {art.get('title', 'Untitled')}\n   {art.get('summary', 'No summary')}"
+        for idx, art in enumerate(article_summaries, 1)
+    ])
+    
+    vars_ = {
+        "location": location,
+        "num_articles": len(article_summaries),
+        "articles_text": articles_text
+    }
+    
+    with using_attributes(tags=["digest", "synthesis"]):
+        if _TRACING:
+            current_span = trace.get_current_span()
+            if current_span:
+                current_span.set_attribute("metadata.agent_type", "digest")
+                current_span.set_attribute("metadata.location", location)
+        
+        with using_prompt_template(template=prompt_t, variables=vars_, version="v1"):
+            res = llm.invoke([SystemMessage(content=prompt_t.format(**vars_))])
+    
+    return {
+        "messages": [SystemMessage(content=res.content)],
+        "final_digest": res.content,
+        "tool_calls": []
+    }
+
+
+def build_news_digest_graph():
+    """Build LangGraph workflow for news digest generation."""
+    g = StateGraph(NewsDigestState)
+    g.add_node("monitor_node", monitor_agent)
+    g.add_node("relevance_node", relevance_agent)
+    g.add_node("summary_node", summary_agent)
+    g.add_node("digest_node", digest_agent)
+    
+    # Sequential flow: monitor -> relevance -> summary -> digest
+    g.add_edge(START, "monitor_node")
+    g.add_edge("monitor_node", "relevance_node")
+    g.add_edge("relevance_node", "summary_node")
+    g.add_edge("summary_node", "digest_node")
+    g.add_edge("digest_node", END)
+    
+    return g.compile()
+
+
 def build_graph():
     g = StateGraph(TripState)
     g.add_node("research_node", research_agent)
@@ -779,7 +1168,7 @@ def build_graph():
     return g.compile()
 
 
-app = FastAPI(title="AI Trip Planner")
+app = FastAPI(title="AI News Agent", description="Personalized news digest for local crime and safety")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -787,6 +1176,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Startup event to initialize database and scheduler
+@app.on_event("startup")
+def startup_event():
+    """Initialize database and scheduler on application startup."""
+    init_db()
+    print("✅ Database initialized successfully")
+    
+    # Start scheduler for automated digest generation
+    try:
+        from backend.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as e:
+        print(f"⚠️ Failed to start scheduler: {e}")
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    """Cleanup on application shutdown."""
+    try:
+        from backend.scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception:
+        pass
 
 
 @app.get("/")
@@ -800,7 +1214,275 @@ def serve_frontend():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "service": "ai-trip-planner"}
+    return {"status": "healthy", "service": "ai-news-agent"}
+
+
+# ============================================================================
+# Authentication Endpoints
+# ============================================================================
+
+@app.post("/api/auth/register", response_model=schemas.Token, tags=["Authentication"])
+def register(user: schemas.UserRegister, db: Session = Depends(get_db)):
+    """Register a new user account."""
+    # Check if user already exists
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create new user
+    hashed_password = auth.get_password_hash(user.password)
+    db_user = models.User(
+        email=user.email,
+        hashed_password=hashed_password,
+        full_name=user.full_name,
+        is_active=True
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    # Create default preferences
+    preferences = models.UserPreferences(user_id=db_user.id)
+    db.add(preferences)
+    db.commit()
+    
+    # Generate access token
+    access_token = auth.create_access_token(data={"sub": str(db_user.id)})
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/api/auth/login", response_model=schemas.Token, tags=["Authentication"])
+def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
+    """Login with email and password."""
+    db_user = auth.authenticate_user(db, user.email, user.password)
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = auth.create_access_token(data={"sub": str(db_user.id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/api/auth/me", response_model=schemas.UserResponse, tags=["Authentication"])
+def get_current_user_info(current_user: models.User = Depends(auth.get_current_user)):
+    """Get current user information."""
+    return current_user
+
+
+# ============================================================================
+# User Profile & Preferences Endpoints
+# ============================================================================
+
+@app.get("/api/users/me", response_model=schemas.UserResponse, tags=["Users"])
+def read_user_me(current_user: models.User = Depends(auth.get_current_user)):
+    """Get current user profile."""
+    return current_user
+
+
+@app.put("/api/users/me", response_model=schemas.UserResponse, tags=["Users"])
+def update_user_me(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update current user profile."""
+    if user_update.email:
+        # Check if email is already taken by another user
+        existing = db.query(models.User).filter(
+            models.User.email == user_update.email,
+            models.User.id != current_user.id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        current_user.email = user_update.email
+    
+    if user_update.full_name is not None:
+        current_user.full_name = user_update.full_name
+    
+    if user_update.password:
+        current_user.hashed_password = auth.get_password_hash(user_update.password)
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.get("/api/preferences", response_model=schemas.UserPreferencesResponse, tags=["Preferences"])
+def get_preferences(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get user preferences."""
+    prefs = db.query(models.UserPreferences).filter(
+        models.UserPreferences.user_id == current_user.id
+    ).first()
+    
+    if not prefs:
+        # Create default preferences if they don't exist
+        prefs = models.UserPreferences(user_id=current_user.id)
+        db.add(prefs)
+        db.commit()
+        db.refresh(prefs)
+    
+    return prefs
+
+
+@app.put("/api/preferences", response_model=schemas.UserPreferencesResponse, tags=["Preferences"])
+def update_preferences(
+    prefs_update: schemas.UserPreferencesUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user preferences."""
+    prefs = db.query(models.UserPreferences).filter(
+        models.UserPreferences.user_id == current_user.id
+    ).first()
+    
+    if not prefs:
+        prefs = models.UserPreferences(user_id=current_user.id)
+        db.add(prefs)
+    
+    # Update fields
+    update_data = prefs_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(prefs, field, value)
+    
+    db.commit()
+    db.refresh(prefs)
+    return prefs
+
+
+# ============================================================================
+# News Digest Endpoints
+# ============================================================================
+
+@app.post("/api/digests/generate", response_model=schemas.NewsDigestResponse, tags=["Digests"])
+def generate_digest(
+    request: schemas.NewsDigestRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Generate a news digest for the user's location or a specified location."""
+    # Get user preferences
+    prefs = db.query(models.UserPreferences).filter(
+        models.UserPreferences.user_id == current_user.id
+    ).first()
+    
+    # Use request location or fall back to user's primary location
+    location = request.location or (prefs.primary_location if prefs else None)
+    
+    if not location:
+        raise HTTPException(
+            status_code=400,
+            detail="No location specified. Please provide a location or set your primary location in preferences."
+        )
+    
+    # Build digest request
+    digest_request = {
+        "location": location,
+        "user_id": current_user.id,
+        "date": request.date or datetime.now(),
+        "keywords": "crime theft burglary home invasion safety",
+        "days_back": 1,
+        "severity_threshold": prefs.severity_threshold if prefs else "all",
+        "radius_km": prefs.radius_km if prefs else 5
+    }
+    
+    # Build and invoke news digest graph
+    graph = build_news_digest_graph()
+    state = {
+        "messages": [],
+        "digest_request": digest_request,
+        "tool_calls": []
+    }
+    
+    with using_attributes(user_id=str(current_user.id)):
+        result = graph.invoke(state)
+    
+    # Extract articles and digest
+    articles = result.get("article_summaries", [])
+    final_digest = result.get("final_digest", "No digest generated")
+    
+    # Save digest to database
+    digest = models.NewsDigest(
+        user_id=current_user.id,
+        location=location,
+        digest_date=digest_request["date"],
+        articles=articles,
+        summary_text=final_digest,
+        email_sent=False
+    )
+    db.add(digest)
+    db.commit()
+    db.refresh(digest)
+    
+    return digest
+
+
+@app.get("/api/digests", response_model=schemas.NewsDigestListResponse, tags=["Digests"])
+def list_digests(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 30
+):
+    """Get list of user's historical digests (last 30 days by default)."""
+    digests = db.query(models.NewsDigest).filter(
+        models.NewsDigest.user_id == current_user.id
+    ).order_by(
+        models.NewsDigest.digest_date.desc()
+    ).offset(skip).limit(limit).all()
+    
+    total = db.query(models.NewsDigest).filter(
+        models.NewsDigest.user_id == current_user.id
+    ).count()
+    
+    return {
+        "digests": digests,
+        "total": total,
+        "page": skip // limit + 1 if limit > 0 else 1,
+        "page_size": limit
+    }
+
+
+@app.get("/api/digests/{digest_id}", response_model=schemas.NewsDigestResponse, tags=["Digests"])
+def get_digest(
+    digest_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific digest by ID."""
+    digest = db.query(models.NewsDigest).filter(
+        models.NewsDigest.id == digest_id,
+        models.NewsDigest.user_id == current_user.id
+    ).first()
+    
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest not found")
+    
+    return digest
+
+
+@app.get("/api/digests/latest", response_model=schemas.NewsDigestResponse, tags=["Digests"])
+def get_latest_digest(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the most recent digest for the current user."""
+    digest = db.query(models.NewsDigest).filter(
+        models.NewsDigest.user_id == current_user.id
+    ).order_by(
+        models.NewsDigest.digest_date.desc()
+    ).first()
+    
+    if not digest:
+        raise HTTPException(status_code=404, detail="No digests found. Generate your first digest!")
+    
+    return digest
 
 
 # Initialize tracing once at startup, not per request

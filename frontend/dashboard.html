@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard | AI News Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 text-neutral-900 antialiased font-[Inter]">
+  <!-- Nav -->
+  <header class="border-b border-blue-200 bg-white/80 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 via-blue-500 to-cyan-500 text-white">
+          <i data-lucide="shield-alert" class="h-5 w-5"></i>
+        </span>
+        <span class="text-lg font-semibold tracking-tight">News Agent</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="/profile.html" class="text-sm text-neutral-600 hover:text-neutral-900 flex items-center gap-2">
+          <i data-lucide="settings" class="h-4 w-4"></i>
+          Settings
+        </a>
+        <button id="logoutBtn" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-2">
+          <i data-lucide="log-out" class="h-4 w-4"></i>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="mx-auto max-w-7xl px-6 py-10">
+    <!-- Welcome Section -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-semibold tracking-tight">Safety Dashboard</h1>
+      <p class="mt-2 text-neutral-600" id="welcomeText">Loading...</p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="mb-8 flex flex-wrap gap-4">
+      <button id="generateBtn" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-white shadow-sm transition hover:bg-blue-700">
+        <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+        Generate New Digest
+      </button>
+      <button id="viewHistoryBtn" class="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 shadow-sm transition hover:bg-neutral-50">
+        <i data-lucide="history" class="h-4 w-4"></i>
+        View History
+      </button>
+    </div>
+
+    <!-- Latest Digest -->
+    <div id="latestDigest" class="hidden">
+      <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-xl font-semibold tracking-tight">Latest Digest</h2>
+          <span id="digestDate" class="text-sm text-neutral-500"></span>
+        </div>
+        <div id="digestLocation" class="mb-4 flex items-center gap-2 text-sm text-neutral-600">
+          <i data-lucide="map-pin" class="h-4 w-4"></i>
+          <span></span>
+        </div>
+        <div id="digestContent" class="prose max-w-none"></div>
+      </div>
+    </div>
+
+    <!-- Placeholder -->
+    <div id="placeholderCard" class="rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
+      <div class="mx-auto max-w-md">
+        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+          <i data-lucide="newspaper" class="h-8 w-8 text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold tracking-tight">No Digests Yet</h3>
+        <p class="mt-2 text-neutral-600">
+          Set your location in settings, then generate your first daily safety digest.
+        </p>
+        <div class="mt-6 flex justify-center gap-3">
+          <a href="/profile.html" class="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 shadow-sm hover:bg-neutral-50">
+            <i data-lucide="settings" class="h-4 w-4"></i>
+            Set Location
+          </a>
+          <button id="generateFirstBtn" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white shadow-sm hover:bg-blue-700">
+            <i data-lucide="plus" class="h-4 w-4"></i>
+            Generate Digest
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingCard" class="hidden rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center gap-3 text-neutral-700">
+        <i data-lucide="loader-2" class="h-5 w-5 animate-spin"></i>
+        <span>Generating your safety digest...</span>
+      </div>
+    </div>
+
+    <!-- History Section -->
+    <div id="historySection" class="hidden mt-8">
+      <h2 class="text-2xl font-semibold tracking-tight mb-4">Digest History</h2>
+      <div id="historyList" class="space-y-4"></div>
+    </div>
+  </main>
+
+  <script>
+    // Initialize icons
+    function renderIcons() { if (window.lucide) lucide.createIcons(); }
+    renderIcons();
+
+    // Check authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/auth.html';
+    }
+
+    // API helper
+    async function apiCall(endpoint, options = {}) {
+      const response = await fetch(endpoint, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/auth.html';
+        return;
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Request failed');
+      }
+
+      return response.json();
+    }
+
+    // Load user info
+    async function loadUserInfo() {
+      try {
+        const user = await apiCall('/api/auth/me');
+        document.getElementById('welcomeText').textContent = 
+          `Welcome back${user.full_name ? ', ' + user.full_name : ''}! Here's your latest safety update.`;
+      } catch (error) {
+        console.error('Failed to load user info:', error);
+      }
+    }
+
+    // Load latest digest
+    async function loadLatestDigest() {
+      try {
+        const digest = await apiCall('/api/digests/latest');
+        displayDigest(digest);
+      } catch (error) {
+        console.log('No digests found:', error);
+        document.getElementById('placeholderCard').classList.remove('hidden');
+      }
+    }
+
+    // Display digest
+    function displayDigest(digest) {
+      document.getElementById('placeholderCard').classList.add('hidden');
+      document.getElementById('latestDigest').classList.remove('hidden');
+      
+      const date = new Date(digest.digest_date);
+      document.getElementById('digestDate').textContent = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      document.querySelector('#digestLocation span').textContent = digest.location;
+      
+      const content = window.marked ? marked.parse(digest.summary_text) : digest.summary_text;
+      document.getElementById('digestContent').innerHTML = content;
+      
+      renderIcons();
+    }
+
+    // Generate new digest
+    async function generateDigest() {
+      document.getElementById('loadingCard').classList.remove('hidden');
+      document.getElementById('latestDigest').classList.add('hidden');
+      document.getElementById('placeholderCard').classList.add('hidden');
+      
+      try {
+        const digest = await apiCall('/api/digests/generate', {
+          method: 'POST',
+          body: JSON.stringify({})
+        });
+        
+        displayDigest(digest);
+        alert('Digest generated successfully!');
+      } catch (error) {
+        alert('Failed to generate digest: ' + error.message);
+        loadLatestDigest(); // Restore previous view
+      } finally {
+        document.getElementById('loadingCard').classList.add('hidden');
+      }
+    }
+
+    // Load history
+    async function loadHistory() {
+      try {
+        const response = await apiCall('/api/digests?limit=10');
+        const historySection = document.getElementById('historySection');
+        const historyList = document.getElementById('historyList');
+        
+        historyList.innerHTML = response.digests.map(digest => {
+          const date = new Date(digest.digest_date).toLocaleDateString();
+          return `
+            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md transition cursor-pointer" onclick="displayDigest(${JSON.stringify(digest).replace(/"/g, '&quot;')})">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium">${digest.location}</div>
+                  <div class="text-sm text-neutral-500">${date}</div>
+                </div>
+                <div class="text-sm text-neutral-500">${digest.articles.length} articles</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        historySection.classList.remove('hidden');
+        renderIcons();
+      } catch (error) {
+        alert('Failed to load history: ' + error.message);
+      }
+    }
+
+    // Event listeners
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '/auth.html';
+    });
+
+    document.getElementById('generateBtn').addEventListener('click', generateDigest);
+    document.getElementById('generateFirstBtn').addEventListener('click', generateDigest);
+    document.getElementById('viewHistoryBtn').addEventListener('click', loadHistory);
+
+    // Load initial data
+    loadUserInfo();
+    loadLatestDigest();
+  </script>
+</body>
+</html>
+

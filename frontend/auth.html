@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login | AI News Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 text-neutral-900 antialiased font-[Inter]">
+  <!-- Nav -->
+  <header class="border-b border-blue-200 bg-white/80 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 via-blue-500 to-cyan-500 text-white">
+          <i data-lucide="shield-alert" class="h-5 w-5"></i>
+        </span>
+        <span class="text-lg font-semibold tracking-tight">News Agent</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Auth Forms -->
+  <main class="mx-auto max-w-md px-6 py-16">
+    <!-- Tabs -->
+    <div class="mb-8 flex items-center justify-center gap-4">
+      <button id="loginTab" class="tab-btn active px-6 py-2 text-lg font-semibold border-b-2 border-blue-600 text-blue-600">
+        Login
+      </button>
+      <button id="registerTab" class="tab-btn px-6 py-2 text-lg font-semibold border-b-2 border-transparent text-neutral-500 hover:text-neutral-700">
+        Register
+      </button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="auth-form">
+      <div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
+        <h2 class="text-2xl font-semibold tracking-tight mb-2">Welcome Back</h2>
+        <p class="text-sm text-neutral-600 mb-6">Enter your credentials to access your dashboard</p>
+
+        <form id="loginFormElement" class="space-y-4">
+          <div>
+            <label for="loginEmail" class="block text-sm font-medium text-neutral-800 mb-2">Email</label>
+            <input 
+              id="loginEmail" 
+              type="email" 
+              required 
+              placeholder="you@example.com"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div>
+            <label for="loginPassword" class="block text-sm font-medium text-neutral-800 mb-2">Password</label>
+            <input 
+              id="loginPassword" 
+              type="password" 
+              required 
+              placeholder="••••••••"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div id="loginError" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+
+          <button 
+            type="submit"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            <i data-lucide="log-in" class="h-5 w-5"></i>
+            <span class="font-medium">Sign In</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerForm" class="auth-form hidden">
+      <div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
+        <h2 class="text-2xl font-semibold tracking-tight mb-2">Create Account</h2>
+        <p class="text-sm text-neutral-600 mb-6">Get started with personalized safety digests</p>
+
+        <form id="registerFormElement" class="space-y-4">
+          <div>
+            <label for="registerEmail" class="block text-sm font-medium text-neutral-800 mb-2">Email</label>
+            <input 
+              id="registerEmail" 
+              type="email" 
+              required 
+              placeholder="you@example.com"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div>
+            <label for="registerName" class="block text-sm font-medium text-neutral-800 mb-2">Full Name (optional)</label>
+            <input 
+              id="registerName" 
+              type="text" 
+              placeholder="John Doe"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div>
+            <label for="registerPassword" class="block text-sm font-medium text-neutral-800 mb-2">Password</label>
+            <input 
+              id="registerPassword" 
+              type="password" 
+              required 
+              minlength="8"
+              placeholder="••••••••"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900 placeholder-neutral-400 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+            />
+            <p class="mt-1 text-xs text-neutral-500">Minimum 8 characters with letters and numbers</p>
+          </div>
+
+          <div id="registerError" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+
+          <button 
+            type="submit"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            <i data-lucide="user-plus" class="h-5 w-5"></i>
+            <span class="font-medium">Create Account</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="mt-8 rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div class="flex items-start gap-3">
+        <i data-lucide="info" class="h-5 w-5 text-blue-600 mt-0.5"></i>
+        <div class="text-sm text-blue-900">
+          <p class="font-medium mb-1">Why create an account?</p>
+          <ul class="space-y-1 text-blue-700">
+            <li>• Daily personalized safety digests</li>
+            <li>• Email notifications for your neighborhood</li>
+            <li>• Historical digest archive</li>
+            <li>• Multi-location tracking</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Initialize icons
+    function renderIcons() { if (window.lucide) lucide.createIcons(); }
+    renderIcons();
+
+    // Tab switching
+    const loginTab = document.getElementById('loginTab');
+    const registerTab = document.getElementById('registerTab');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+
+    loginTab.addEventListener('click', () => {
+      loginTab.classList.add('active', 'border-blue-600', 'text-blue-600');
+      loginTab.classList.remove('border-transparent', 'text-neutral-500');
+      registerTab.classList.remove('active', 'border-blue-600', 'text-blue-600');
+      registerTab.classList.add('border-transparent', 'text-neutral-500');
+      loginForm.classList.remove('hidden');
+      registerForm.classList.add('hidden');
+    });
+
+    registerTab.addEventListener('click', () => {
+      registerTab.classList.add('active', 'border-blue-600', 'text-blue-600');
+      registerTab.classList.remove('border-transparent', 'text-neutral-500');
+      loginTab.classList.remove('active', 'border-blue-600', 'text-blue-600');
+      loginTab.classList.add('border-transparent', 'text-neutral-500');
+      registerForm.classList.remove('hidden');
+      loginForm.classList.add('hidden');
+    });
+
+    // Login form submission
+    document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorDiv = document.getElementById('loginError');
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Login failed');
+        }
+
+        const data = await response.json();
+        localStorage.setItem('token', data.access_token);
+        window.location.href = '/dashboard.html';
+      } catch (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.classList.remove('hidden');
+      }
+    });
+
+    // Register form submission
+    document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      const full_name = document.getElementById('registerName').value || null;
+      const errorDiv = document.getElementById('registerError');
+
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, full_name })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Registration failed');
+        }
+
+        const data = await response.json();
+        localStorage.setItem('token', data.access_token);
+        window.location.href = '/dashboard.html';
+      } catch (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
+

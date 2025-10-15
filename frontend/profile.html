@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile Settings | AI News Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 text-neutral-900 antialiased font-[Inter]">
+  <!-- Nav -->
+  <header class="border-b border-blue-200 bg-white/80 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 via-blue-500 to-cyan-500 text-white">
+          <i data-lucide="shield-alert" class="h-5 w-5"></i>
+        </span>
+        <span class="text-lg font-semibold tracking-tight">News Agent</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="/dashboard.html" class="text-sm text-neutral-600 hover:text-neutral-900 flex items-center gap-2">
+          <i data-lucide="arrow-left" class="h-4 w-4"></i>
+          Dashboard
+        </a>
+        <button id="logoutBtn" class="text-sm text-red-600 hover:text-red-700 flex items-center gap-2">
+          <i data-lucide="log-out" class="h-4 w-4"></i>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="mx-auto max-w-4xl px-6 py-10">
+    <h1 class="text-3xl font-semibold tracking-tight mb-8">Profile Settings</h1>
+
+    <div class="space-y-6">
+      <!-- Account Information -->
+      <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-semibold tracking-tight mb-4">Account Information</h2>
+        
+        <form id="accountForm" class="space-y-4">
+          <div>
+            <label for="email" class="block text-sm font-medium text-neutral-800 mb-2">Email</label>
+            <input 
+              id="email" 
+              type="email" 
+              disabled
+              class="w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3.5 py-2.5 text-neutral-600"
+            />
+            <p class="mt-1 text-xs text-neutral-500">Email cannot be changed after registration</p>
+          </div>
+
+          <div>
+            <label for="fullName" class="block text-sm font-medium text-neutral-800 mb-2">Full Name</label>
+            <input 
+              id="fullName" 
+              type="text" 
+              placeholder="John Doe"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
+            />
+          </div>
+
+          <div id="accountSuccess" class="hidden rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
+            Profile updated successfully!
+          </div>
+
+          <button 
+            type="submit"
+            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700"
+          >
+            <i data-lucide="save" class="h-4 w-4"></i>
+            Save Changes
+          </button>
+        </form>
+      </div>
+
+      <!-- Location Settings -->
+      <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-semibold tracking-tight mb-4">Location Settings</h2>
+        
+        <form id="locationForm" class="space-y-4">
+          <div>
+            <label for="primaryLocation" class="block text-sm font-medium text-neutral-800 mb-2">
+              Primary Location
+            </label>
+            <input 
+              id="primaryLocation" 
+              type="text" 
+              placeholder="e.g., Melbourne CBD, Brooklyn NY, Mission District San Francisco"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
+            />
+            <p class="mt-1 text-xs text-neutral-500">The main location for your daily safety digests</p>
+          </div>
+
+          <div>
+            <label for="radiusKm" class="block text-sm font-medium text-neutral-800 mb-2">
+              Search Radius (km)
+            </label>
+            <select 
+              id="radiusKm" 
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
+            >
+              <option value="1">1 km (immediate vicinity)</option>
+              <option value="3">3 km (neighborhood)</option>
+              <option value="5" selected>5 km (local area)</option>
+              <option value="10">10 km (wider area)</option>
+              <option value="20">20 km (city-wide)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="severityThreshold" class="block text-sm font-medium text-neutral-800 mb-2">
+              Severity Filter
+            </label>
+            <select 
+              id="severityThreshold" 
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
+            >
+              <option value="all" selected>All incidents</option>
+              <option value="medium">Medium and high severity</option>
+              <option value="high">High severity only</option>
+            </select>
+          </div>
+
+          <div id="locationSuccess" class="hidden rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
+            Location settings updated successfully!
+          </div>
+
+          <button 
+            type="submit"
+            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700"
+          >
+            <i data-lucide="save" class="h-4 w-4"></i>
+            Save Location Settings
+          </button>
+        </form>
+      </div>
+
+      <!-- Notification Settings -->
+      <div class="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-semibold tracking-tight mb-4">Notification Settings</h2>
+        
+        <form id="notificationForm" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-medium">Email Notifications</div>
+              <div class="text-sm text-neutral-600">Receive daily digest via email</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="emailNotifications" class="sr-only peer">
+              <div class="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <div>
+            <label for="notificationTime" class="block text-sm font-medium text-neutral-800 mb-2">
+              Notification Time (local)
+            </label>
+            <input 
+              id="notificationTime" 
+              type="time" 
+              value="07:00"
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
+            />
+            <p class="mt-1 text-xs text-neutral-500">Time to receive your daily digest (in your local timezone)</p>
+          </div>
+
+          <div>
+            <label for="timezone" class="block text-sm font-medium text-neutral-800 mb-2">
+              Timezone
+            </label>
+            <select 
+              id="timezone" 
+              class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
+            >
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">Eastern Time (US)</option>
+              <option value="America/Chicago">Central Time (US)</option>
+              <option value="America/Denver">Mountain Time (US)</option>
+              <option value="America/Los_Angeles">Pacific Time (US)</option>
+              <option value="Australia/Melbourne">Melbourne</option>
+              <option value="Australia/Sydney">Sydney</option>
+              <option value="Europe/London">London</option>
+              <option value="Europe/Paris">Paris</option>
+              <option value="Asia/Tokyo">Tokyo</option>
+            </select>
+          </div>
+
+          <div id="notificationSuccess" class="hidden rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
+            Notification settings updated successfully!
+          </div>
+
+          <button 
+            type="submit"
+            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700"
+          >
+            <i data-lucide="save" class="h-4 w-4"></i>
+            Save Notification Settings
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Initialize icons
+    function renderIcons() { if (window.lucide) lucide.createIcons(); }
+    renderIcons();
+
+    // Check authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/auth.html';
+    }
+
+    // API helper
+    async function apiCall(endpoint, options = {}) {
+      const response = await fetch(endpoint, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/auth.html';
+        return;
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Request failed');
+      }
+
+      return response.json();
+    }
+
+    // Load user data
+    async function loadUserData() {
+      try {
+        const user = await apiCall('/api/auth/me');
+        document.getElementById('email').value = user.email;
+        document.getElementById('fullName').value = user.full_name || '';
+      } catch (error) {
+        alert('Failed to load user data: ' + error.message);
+      }
+    }
+
+    // Load preferences
+    async function loadPreferences() {
+      try {
+        const prefs = await apiCall('/api/preferences');
+        document.getElementById('primaryLocation').value = prefs.primary_location || '';
+        document.getElementById('radiusKm').value = prefs.radius_km || 5;
+        document.getElementById('severityThreshold').value = prefs.severity_threshold || 'all';
+        document.getElementById('emailNotifications').checked = prefs.email_notifications !== false;
+        document.getElementById('notificationTime').value = prefs.notification_time || '07:00';
+        document.getElementById('timezone').value = prefs.timezone || 'UTC';
+      } catch (error) {
+        console.error('Failed to load preferences:', error);
+      }
+    }
+
+    // Save account info
+    document.getElementById('accountForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const full_name = document.getElementById('fullName').value || null;
+      
+      try {
+        await apiCall('/api/users/me', {
+          method: 'PUT',
+          body: JSON.stringify({ full_name })
+        });
+        document.getElementById('accountSuccess').classList.remove('hidden');
+        setTimeout(() => {
+          document.getElementById('accountSuccess').classList.add('hidden');
+        }, 3000);
+      } catch (error) {
+        alert('Failed to update account: ' + error.message);
+      }
+    });
+
+    // Save location settings
+    document.getElementById('locationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const primary_location = document.getElementById('primaryLocation').value;
+      const radius_km = parseInt(document.getElementById('radiusKm').value);
+      const severity_threshold = document.getElementById('severityThreshold').value;
+      
+      try {
+        await apiCall('/api/preferences', {
+          method: 'PUT',
+          body: JSON.stringify({ primary_location, radius_km, severity_threshold })
+        });
+        document.getElementById('locationSuccess').classList.remove('hidden');
+        setTimeout(() => {
+          document.getElementById('locationSuccess').classList.add('hidden');
+        }, 3000);
+      } catch (error) {
+        alert('Failed to update location settings: ' + error.message);
+      }
+    });
+
+    // Save notification settings
+    document.getElementById('notificationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email_notifications = document.getElementById('emailNotifications').checked;
+      const notification_time = document.getElementById('notificationTime').value;
+      const timezone = document.getElementById('timezone').value;
+      
+      try {
+        await apiCall('/api/preferences', {
+          method: 'PUT',
+          body: JSON.stringify({ email_notifications, notification_time, timezone })
+        });
+        document.getElementById('notificationSuccess').classList.remove('hidden');
+        setTimeout(() => {
+          document.getElementById('notificationSuccess').classList.add('hidden');
+        }, 3000);
+      } catch (error) {
+        alert('Failed to update notification settings: ' + error.message);
+      }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '/auth.html';
+    });
+
+    // Load initial data
+    loadUserData();
+    loadPreferences();
+  </script>
+</body>
+</html>
+
