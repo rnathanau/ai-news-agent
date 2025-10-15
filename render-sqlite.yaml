@@ -1,5 +1,5 @@
 services:
-  # FastAPI Web Application
+  # FastAPI Web Application (SQLite - No PostgreSQL required)
   - type: web
     name: ai-news-agent
     env: python
@@ -10,7 +10,7 @@ services:
       pip install -r requirements.txt
     startCommand: python -m uvicorn main:app --host 0.0.0.0 --port $PORT
     autoDeploy: true
-    # Persistent disk for SQLite database
+    # Add persistent disk for SQLite database
     disk:
       name: ai-news-agent-data
       mountPath: /opt/render/project/src/backend
@@ -28,10 +28,7 @@ services:
       # Required: Security
       - key: SECRET_KEY
         generateValue: true
-      # Optional: Database URL (uses SQLite by default if not provided)
-      # To use PostgreSQL: Create database separately and add DATABASE_URL manually
-      - key: DATABASE_URL
-        sync: false
+      # Database - defaults to SQLite (no DATABASE_URL needed)
       # Optional: Email notifications
       - key: SENDGRID_API_KEY
         sync: false
@@ -47,3 +44,4 @@ services:
         sync: false
       - key: ARIZE_API_KEY
         sync: false
+
