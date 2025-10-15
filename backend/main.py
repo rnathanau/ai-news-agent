@@ -947,14 +947,20 @@ def monitor_agent(state: NewsDigestState) -> NewsDigestState:
         
         # Parse articles from tool results
         # In a real implementation, this would parse structured data from News API
-        # For now, we'll create a simplified structure
-        articles = [{
-            "title": "Recent Crime Incident",
-            "content": msg.content if hasattr(msg, 'content') else str(msg),
-            "source": "Local News",
-            "url": "#",
-            "found_via": "monitor_agent"
-        } for msg in tr["messages"]]
+        # For now, we'll create a simplified structure with mock but realistic URLs
+        import hashlib
+        articles = []
+        for idx, msg in enumerate(tr["messages"], 1):
+            content = msg.content if hasattr(msg, 'content') else str(msg)
+            # Generate a consistent but realistic-looking URL based on content
+            content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
+            articles.append({
+                "title": f"Safety Incident #{idx}",
+                "content": content,
+                "source": "Local News Network",
+                "url": f"https://localnews.example.com/article/{content_hash}",
+                "found_via": "monitor_agent"
+            })
     
     return {
         "messages": [SystemMessage(content=f"Found {len(articles)} potential articles")],
