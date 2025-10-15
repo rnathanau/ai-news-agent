@@ -300,6 +300,50 @@ def _compact(text: str, limit: int = 200) -> str:
     return truncated.rstrip(",.;- ")
 
 
+def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+    """Search for news articles with full metadata including URLs.
+    
+    Returns list of articles with: title, url, content, source
+    """
+    query = query.strip()
+    if not query:
+        return []
+
+    # Try Tavily first (recommended for news search)
+    tavily_key = os.getenv("TAVILY_API_KEY")
+    if tavily_key:
+        try:
+            with httpx.Client(timeout=SEARCH_TIMEOUT) as client:
+                resp = client.post(
+                    "https://api.tavily.com/search",
+                    json={
+                        "api_key": tavily_key,
+                        "query": query,
+                        "max_results": max_results,
+                        "search_depth": "basic",
+                        "include_answer": False,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                
+                articles = []
+                for item in data.get("results", []):
+                    articles.append({
+                        "title": item.get("title", "Untitled"),
+                        "url": item.get("url", "#"),
+                        "content": item.get("content", ""),
+                        "source": item.get("url", "").split("/")[2] if item.get("url") else "Unknown",
+                        "published_at": item.get("published_date")
+                    })
+                return articles
+        except Exception as e:
+            print(f"Tavily API error: {e}")
+            pass  # Fail gracefully, try next option
+    
+    return []
+
+
 def _search_api(query: str) -> Optional[str]:
     """Search the web using Tavily or SerpAPI if configured, return None otherwise.
     
@@ -938,29 +982,40 @@ def monitor_agent(state: NewsDigestState) -> NewsDigestState:
         with using_prompt_template(template=prompt_t, variables=vars_, version="v1"):
             res = agent.invoke(messages)
     
-    if getattr(res, "tool_calls", None):
+    # Try to get real articles from Tavily API first
+    query = f"{location} {keywords} news last {days_back} days"
+    real_articles = _search_api_articles(query, max_results=5)
+    
+    if real_articles:
+        # Use real articles from Tavily
+        articles = [{
+            **article,
+            "found_via": "tavily_api"
+        } for article in real_articles]
+        calls.append({"agent": "monitor", "tool": "tavily_search", "args": {"query": query}})
+    elif getattr(res, "tool_calls", None):
+        # Fallback to LLM tool calls if no Tavily results
         for c in res.tool_calls:
             calls.append({"agent": "monitor", "tool": c["name"], "args": c.get("args", {})})
         
         tool_node = ToolNode(tools)
         tr = tool_node.invoke({"messages": [res]})
         
-        # Parse articles from tool results
-        # In a real implementation, this would parse structured data from News API
-        # For now, we'll create a simplified structure with mock but realistic URLs
+        # Generate fallback articles with mock URLs
         import hashlib
         articles = []
         for idx, msg in enumerate(tr["messages"], 1):
             content = msg.content if hasattr(msg, 'content') else str(msg)
-            # Generate a consistent but realistic-looking URL based on content
             content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
             articles.append({
                 "title": f"Safety Incident #{idx}",
                 "content": content,
                 "source": "Local News Network",
                 "url": f"https://localnews.example.com/article/{content_hash}",
-                "found_via": "monitor_agent"
+                "found_via": "llm_fallback"
             })
+    else:
+        articles = []
     
     return {
         "messages": [SystemMessage(content=f"Found {len(articles)} potential articles")],
