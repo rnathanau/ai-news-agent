@@ -1,250 +1,334 @@
-# AI Trip Planner
+# AI News Agent - Personalized Safety Digests
 
-A **production-ready multi-agent system** built for learning and customization. This repo demonstrates three essential AI engineering patterns that students can study, modify, and adapt for their own use cases.
+> Stay informed about crime and safety incidents in your neighborhood with AI-powered daily digests.
 
-## What You'll Learn
+## What Is This?
 
-- 🤖 **Multi-Agent Orchestration**: 4 specialized agents running in parallel using LangGraph
-- 🔍 **RAG (Retrieval-Augmented Generation)**: Vector search over curated data with fallback strategies
-- 🌐 **API Integration**: Real-time web search with graceful degradation (LLM fallback)
-- 📊 **Observability**: Production tracing with Arize for debugging and evaluation
-- 🛠️ **Composable Architecture**: Easily adapt from "trip planner" to your own agent system
+AI News Agent is a multi-agent AI system that monitors local crime and safety news, curates the most relevant incidents for your specific neighborhood, and delivers a personalized daily digest via email and web dashboard.
 
-**Perfect for:** Students learning to build, evaluate, and deploy agentic AI systems.
+**Key Features:**
+- 🤖 **Multi-Agent AI**: Four specialized agents working in parallel
+- 📍 **Hyper-Local**: Configure exact neighborhood and search radius
+- 📧 **Daily Email Digests**: Automated delivery at your preferred time
+- 🌍 **Global Support**: Any city/neighborhood worldwide
+- 📊 **Historical Archive**: View past 30 days of digests
+- 🔒 **Secure & Private**: User authentication with encrypted passwords
+
+## How It Works
+
+### The Four-Agent System
+
+```
+┌──────────────────┐
+│  Monitor Agent   │  Searches for crime/safety news in your location
+└────────┬─────────┘
+         │
+         v
+┌──────────────────┐
+│ Relevance Agent  │  Filters by proximity, severity, and recency
+└────────┬─────────┘
+         │
+         v
+┌──────────────────┐
+│  Summary Agent   │  Generates concise 2-3 sentence summaries
+└────────┬─────────┘
+         │
+         v
+┌──────────────────┐
+│  Digest Agent    │  Synthesizes top 3 into cohesive briefing
+└──────────────────┘
+```
+
+### Example Workflow
+
+1. **You configure** your location: "Melbourne CBD, Australia"
+2. **Monitor Agent** searches news APIs for recent crime/safety incidents
+3. **Relevance Agent** filters incidents within 5km and ranks by severity
+4. **Summary Agent** creates clear, concise summaries of each incident
+5. **Digest Agent** synthesizes the top 3 into your morning briefing
+6. **Email sent** to your inbox at 7:00 AM local time
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.10 or higher
+- OpenAI API key (or Google Gemini / OpenRouter)
+- PostgreSQL (production) or SQLite (development)
+- SendGrid API key (optional - for email delivery)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/rnathanau/ai-news-agent.git
+cd ai-news-agent
+```
+
+2. **Install dependencies**
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+3. **Configure environment**
+```bash
+# Copy example config
+cp env.example .env
+
+# Edit .env with your credentials
+# Minimum required:
+# - OPENAI_API_KEY or GOOGLE_API_KEY
+# - DATABASE_URL (defaults to SQLite if not set)
+# - SECRET_KEY (for JWT tokens)
+# - SENDGRID_API_KEY (optional - for emails)
+# - FROM_EMAIL (sender email address)
+```
+
+4. **Run the server**
+```bash
+# Development mode with auto-reload
+cd backend
+python -m uvicorn main:app --reload --port 8000
+
+# Production mode
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+5. **Access the application**
+- Frontend: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Dashboard: http://localhost:8000/dashboard.html
+
+## Usage Guide
+
+### First Time Setup
+
+1. **Register an account** at `/auth.html`
+   - Provide email and password (min 8 characters)
+   - Optionally add your name
+
+2. **Set your location** in Settings (`/profile.html`)
+   - Enter your primary location (e.g., "Brooklyn, NY")
+   - Configure search radius (1-20 km)
+   - Set severity filter (all/medium/high)
+
+3. **Configure notifications**
+   - Enable/disable email notifications
+   - Set preferred delivery time
+   - Choose your timezone
+
+4. **Generate your first digest**
+   - Click "Generate Digest" on dashboard
+   - View results immediately
+   - Digests auto-generate daily
+
+## Configuration
+
+### Environment Variables
+
+#### Required
+
+```env
+# LLM Provider (choose one)
+OPENAI_API_KEY=sk-...
+# OR
+GOOGLE_API_KEY=...
+# OR
+OPENROUTER_API_KEY=...
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/newsagent
+
+# Security
+SECRET_KEY=your-secret-key-min-32-characters
+
+# Email (optional for testing, required for email notifications)
+SENDGRID_API_KEY=SG...
+FROM_EMAIL=notifications@yourdomain.com
+```
+
+#### Optional
+
+```env
+# News APIs (for real-time data)
+TAVILY_API_KEY=...
+NEWS_API_KEY=...
+SERPAPI_API_KEY=...
+
+# Observability
+ARIZE_SPACE_ID=...
+ARIZE_API_KEY=...
+
+# Scheduler
+ENABLE_SCHEDULER=1
+DIGEST_GENERATION_TIME=00:00
+```
+
+### Database Setup
+
+#### SQLite (Development)
+```bash
+# Automatic - no setup needed
+# Database created at ./news_agent.db
+```
+
+#### PostgreSQL (Production)
+```bash
+# Create database
+createdb newsagent
+
+# Run migrations (if needed)
+alembic upgrade head
+```
+
+## API Reference
+
+### Authentication
+
+**Register**
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123",
+  "full_name": "John Doe"
+}
+```
+
+**Login**
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123"
+}
+
+Response: { "access_token": "...", "token_type": "bearer" }
+```
+
+### Digests
+
+**Generate Digest**
+```http
+POST /api/digests/generate
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "location": "Brooklyn, NY"  // Optional, uses user's primary location
+}
+```
+
+**List Digests**
+```http
+GET /api/digests?skip=0&limit=30
+Authorization: Bearer <token>
+```
+
+**Get Latest Digest**
+```http
+GET /api/digests/latest
+Authorization: Bearer <token>
+```
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Request                             │
-│                    (destination, duration, interests)            │
-└────────────────────────────────┬────────────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   FastAPI Endpoint      │
-                    │   + Session Tracking    │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   LangGraph Workflow    │
-                    │   (Parallel Execution)  │
-                    └────────────┬────────────┘
-                                 │
-        ┌────────────────────────┼────────────────────────┐
-        │                        │                        │
-   ┌────▼─────┐           ┌─────▼──────┐         ┌──────▼─────┐
-   │ Research │           │   Budget   │         │   Local    │
-   │  Agent   │           │   Agent    │         │   Agent    │
-   └────┬─────┘           └─────┬──────┘         └──────┬─────┘
-        │                        │                        │
-        │ Tools:                 │ Tools:                 │ Tools + RAG:
-        │ • essential_info       │ • budget_basics        │ • local_flavor
-        │ • weather_brief        │ • attraction_prices    │ • hidden_gems
-        │ • visa_brief           │                        │ • Vector search
-        │                        │                        │   (90+ guides)
-        │                        │                        │
-        └────────────────────────┼────────────────────────┘
-                                 │
-                            ┌────▼─────┐
-                            │Itinerary │
-                            │  Agent   │
-                            │(Synthesis)│
-                            └────┬─────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   Final Itinerary       │
-                    │   + Tool Call Metadata  │
-                    └─────────────────────────┘
+### Tech Stack
 
-All agents, tools, and LLM calls → Arize Observability Platform
-```
+- **Backend**: FastAPI (Python 3.10+)
+- **AI**: LangGraph, LangChain, OpenAI GPT-4o-mini
+- **Database**: PostgreSQL / SQLite
+- **Auth**: JWT with bcrypt
+- **Email**: SendGrid
+- **Frontend**: HTML, TailwindCSS, Vanilla JS
+- **Scheduler**: APScheduler
 
-## Learning Paths
+### Design Patterns
 
-### 🎓 Beginner Path
-1. **Setup & Run** (15 min)
-   - Clone repo, configure `.env` with OpenAI key
-   - Start server: `./start.sh`
-   - Test API: `python "test scripts/test_api.py"`
+- **Multi-Agent Orchestration**: LangGraph for workflow management
+- **Graceful Degradation**: Works without optional APIs (uses LLM fallback)
+- **Hybrid Data Sources**: Real APIs + LLM generation
+- **Tool-Augmented Agents**: Structured tools for data retrieval
+- **Stateful Graph**: Shared state across agent pipeline
 
-2. **Observe & Understand** (30 min)
-   - Make a few trip planning requests
-   - View traces in Arize dashboard
-   - Understand agent execution flow and tool calls
+## Deployment
 
-3. **Experiment with Prompts** (30 min)
-   - Modify agent prompts in `backend/main.py`
-   - Change tool descriptions
-   - See how it affects outputs
+### Render (Recommended)
 
-### 🚀 Intermediate Path
-1. **Enable Advanced Features** (20 min)
-   - Set `ENABLE_RAG=1` to use vector search
-   - Add `TAVILY_API_KEY` for real-time web search
-   - Compare results with/without these features
+1. Fork this repository
+2. Create new Web Service on Render
+3. Connect your GitHub repository
+4. Render will automatically detect `render.yaml`
+5. Set environment variables in Render dashboard:
+   - `OPENAI_API_KEY`
+   - `SECRET_KEY`
+   - `SENDGRID_API_KEY` (optional)
+   - `FROM_EMAIL` (optional)
+6. Deploy!
 
-2. **Add Custom Data** (45 min)
-   - Add your own city to `backend/data/local_guides.json`
-   - Test RAG retrieval with your data
-   - Understand fallback strategies
+### Manual Deployment
 
-3. **Create a New Tool** (1 hour)
-   - Add a new tool (e.g., `restaurant_finder`)
-   - Integrate it into an agent
-   - Test and trace the new tool calls
-
-### 💪 Advanced Path
-1. **Change the Domain** (2-3 hours)
-   - Use Cursor AI to help transform the system
-   - Example: Change from "trip planner" to "PRD generator"
-   - Modify state, agents, and tools for your use case
-
-2. **Add a New Agent** (2 hours)
-   - Create a 5th agent (e.g., "activities planner")
-   - Update the LangGraph workflow
-   - Test parallel vs sequential execution
-
-3. **Implement Evaluations** (2 hours)
-   - Use `test scripts/synthetic_data_gen.py` as a base
-   - Create evaluation criteria for your domain
-   - Set up automated evals in Arize
-
-## Common Use Cases (Built by Students)
-
-Students have successfully adapted this codebase for:
-
-- **📝 PR Description Generator**
-  - Agents: Code Analyzer, Context Gatherer, Description Writer
-  - Replaces travel tools with GitHub API calls
-  - Used by tech leads to auto-generate PR descriptions
-
-- **🎯 Customer Support Analyst**
-  - Agents: Ticket Classifier, Knowledge Base Search, Response Generator
-  - RAG over support docs instead of local guides
-  - Routes tickets and drafts responses
-
-- **🔬 Research Assistant**
-  - Agents: Web Searcher, Academic Search, Citation Manager, Synthesizer
-  - Web search for papers + RAG over personal library
-  - Generates research summaries with citations
-
-- **📱 Content Planning System**
-  - Agents: SEO Researcher, Social Media Planner, Blog Scheduler
-  - Tools for keyword research, trend analysis
-  - Creates cross-platform content calendars
-
-- **🏗️ Architecture Review Agent**
-  - Agents: Code Scanner, Pattern Detector, Best Practices Checker
-  - RAG over architecture docs
-  - Reviews PRs for architectural concerns
-
-**💡 Your Turn**: Use Cursor AI to help you adapt this system for your domain!
-
-## Quickstart
-
-1) Requirements
-- Python 3.10+ (Docker optional)
-
-2) Configure environment
-- Copy `backend/.env.example` to `backend/.env`.
-- Set one LLM key: `OPENAI_API_KEY=...` or `OPENROUTER_API_KEY=...`.
-- Optional: `ARIZE_SPACE_ID` and `ARIZE_API_KEY` for tracing.
-
-3) Install dependencies
 ```bash
+# Production
 cd backend
-uv pip install -r requirements.txt   # faster, deterministic installs
-# If uv is not installed: curl -LsSf https://astral.sh/uv/install.sh | sh
-# Fallback: pip install -r requirements.txt
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
-
-4) Run
-```bash
-# make sure you are back in the root directory of ai-trip-planner
-cd ..
-./start.sh                      # starts backend on 8000; serves minimal UI at '/'
-# or
-cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-5) Open
-- Frontend: http://localhost:3000
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
- - Minimal UI: http://localhost:8000/
-
-Docker (optional)
-```bash
-docker-compose up --build
-```
-
-## Project Structure
-- `backend/`: FastAPI app (`main.py`), LangGraph agents, tracing hooks.
-- `frontend/index.html`: Minimal static UI served by backend at `/`.
-- `optional/airtable/`: Airtable integration (optional, not on critical path).
-- `test scripts/`: `test_api.py`, `synthetic_data_gen.py` for quick checks/evals.
-- Root: `start.sh`, `docker-compose.yml`, `README.md`.
-
-## Development Commands
-- Backend (dev): `uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
-- API smoke test: `python "test scripts"/test_api.py`
-- Synthetic evals: `python "test scripts"/synthetic_data_gen.py --base-url http://localhost:8000 --count 12`
-
-## API
-- POST `/plan-trip` → returns a generated itinerary.
-  Example body:
-  ```json
-  {"destination":"Tokyo, Japan","duration":"7 days","budget":"$2000","interests":"food, culture"}
-  ```
-- GET `/health` → simple status.
-
-## Notes on Tracing (Optional)
-- If `ARIZE_SPACE_ID` and `ARIZE_API_KEY` are set, OpenInference exports spans for agents/tools/LLM calls. View at https://app.arize.com.
-
-## Optional Features
-
-### RAG: Vector Search for Local Guides
-
-The local agent can use vector search to retrieve curated local experiences from a database of 90+ real-world recommendations:
-
-- **Enable**: Set `ENABLE_RAG=1` in your `.env` file
-- **Requirements**: Requires `OPENAI_API_KEY` for embeddings
-- **Data**: Uses curated experiences from `backend/data/local_guides.json`
-- **Benefits**: Provides grounded, cited recommendations with sources
-- **Learning**: Great example of production RAG patterns with fallback strategies
-
-When disabled (default), the local agent uses LLM-generated responses.
-
-See `RAG.md` for detailed documentation.
-
-### Web Search: Real-Time Tool Data
-
-Tools can call real web search APIs (Tavily or SerpAPI) for up-to-date travel information:
-
-- **Enable**: Add `TAVILY_API_KEY` or `SERPAPI_API_KEY` to your `.env` file
-- **Benefits**: Real-time data for weather, attractions, prices, customs, etc.
-- **Fallback**: Without API keys, tools automatically fall back to LLM-generated responses
-- **Learning**: Demonstrates graceful degradation and multi-tier fallback patterns
-
-Recommended: Tavily (free tier: 1000 searches/month) - https://tavily.com
-
-## Next Steps
-
-1. **🎯 Start Simple**: Get it running, make some requests, view traces
-2. **🔍 Explore Code**: Read through `backend/main.py` to understand patterns
-3. **🛠️ Modify Prompts**: Change agent behaviors to see what happens
-4. **🚀 Enable Features**: Try RAG and web search
-5. **💡 Build Your Own**: Use Cursor to transform it into your agent system
 
 ## Troubleshooting
 
-- **401/empty results**: Verify `OPENAI_API_KEY` or `OPENROUTER_API_KEY` in `backend/.env`
-- **No traces**: Ensure Arize credentials are set and reachable
-- **Port conflicts**: Stop existing services on 3000/8000 or change ports
-- **RAG not working**: Check `ENABLE_RAG=1` and `OPENAI_API_KEY` are both set
-- **Slow responses**: Web search APIs may timeout; LLM fallback will handle it
+### Digest Generation Fails
 
-## Deploy on Render
-- This repo includes `render.yaml`. Connect your GitHub repo in Render and deploy as a Web Service.
-- Render will run: `pip install -r backend/requirements.txt` and `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-- Set `OPENAI_API_KEY` (or `OPENROUTER_API_KEY`) and optional Arize vars in the Render dashboard.
+**Problem**: Error when clicking "Generate Digest"
+
+**Solutions**:
+1. Verify LLM API key is valid
+2. Check you have a location configured
+3. Check API rate limits
+4. View detailed errors in browser console
+
+### Email Not Received
+
+**Problem**: Digest generated but email not delivered
+
+**Solutions**:
+1. Check SendGrid API key is configured
+2. Verify email_notifications is enabled in preferences
+3. Check spam/junk folder
+4. View SendGrid dashboard for delivery status
+
+### Scheduler Not Running
+
+**Problem**: No automated daily digests
+
+**Solutions**:
+1. Verify `ENABLE_SCHEDULER=1` in .env
+2. Check server logs for startup errors
+3. Test manual digest generation first
+4. Verify timezone configuration
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+- **Issues**: https://github.com/rnathanau/ai-news-agent/issues
+- **Documentation**: See NEWS_AGENT_README.md for detailed documentation
+
+## Acknowledgments
+
+Built with:
+- [LangChain](https://langchain.com/) - LLM framework
+- [FastAPI](https://fastapi.tiangolo.com/) - Web framework
+- [Tailwind CSS](https://tailwindcss.com/) - UI styling
+- [SendGrid](https://sendgrid.com/) - Email delivery
+
+---
+
+**Made for safer neighborhoods**

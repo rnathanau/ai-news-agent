@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
@@ -13,8 +14,8 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 # Database and authentication imports
-from backend.database import get_db, init_db
-from backend import models, schemas, auth
+from database import get_db, init_db
+import models, schemas, auth
 
 # Minimal observability via Arize/OpenInference (optional)
 try:
@@ -1183,21 +1184,21 @@ app.add_middleware(
 def startup_event():
     """Initialize database and scheduler on application startup."""
     init_db()
-    print("✅ Database initialized successfully")
+    print("Database initialized successfully")
     
     # Start scheduler for automated digest generation
     try:
-        from backend.scheduler import start_scheduler
+        from scheduler import start_scheduler
         start_scheduler()
     except Exception as e:
-        print(f"⚠️ Failed to start scheduler: {e}")
+        print(f"Failed to start scheduler: {e}")
 
 
 @app.on_event("shutdown")
 def shutdown_event():
     """Cleanup on application shutdown."""
     try:
-        from backend.scheduler import stop_scheduler
+        from scheduler import stop_scheduler
         stop_scheduler()
     except Exception:
         pass
@@ -1210,6 +1211,33 @@ def serve_frontend():
     if os.path.exists(path):
         return FileResponse(path)
     return {"message": "frontend/index.html not found"}
+
+
+@app.get("/auth.html")
+def serve_auth():
+    here = os.path.dirname(__file__)
+    path = os.path.join(here, "..", "frontend", "auth.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return {"message": "frontend/auth.html not found"}
+
+
+@app.get("/dashboard.html")
+def serve_dashboard():
+    here = os.path.dirname(__file__)
+    path = os.path.join(here, "..", "frontend", "dashboard.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return {"message": "frontend/dashboard.html not found"}
+
+
+@app.get("/profile.html")
+def serve_profile():
+    here = os.path.dirname(__file__)
+    path = os.path.join(here, "..", "frontend", "profile.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return {"message": "frontend/profile.html not found"}
 
 
 @app.get("/health")

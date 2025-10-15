@@ -6,10 +6,10 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timedelta
 import pytz
 from sqlalchemy.orm import Session
-from backend.database import SessionLocal
-from backend import models
-from backend.email_service import send_digest_email
-from backend.main import build_news_digest_graph
+from database import SessionLocal
+import models
+from email_service import send_digest_email
+# Import build_news_digest_graph later to avoid circular import
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,7 +36,7 @@ def generate_digest_for_user(user_id: int, db: Session) -> bool:
         # Get user and preferences
         user = db.query(models.User).filter(models.User.id == user_id).first()
         if not user or not user.is_active:
-            print(f"⚠️ User {user_id} not found or inactive")
+            print(f"WARNING: User {user_id} not found or inactive")
             return False
         
         prefs = db.query(models.UserPreferences).filter(
@@ -44,7 +44,7 @@ def generate_digest_for_user(user_id: int, db: Session) -> bool:
         ).first()
         
         if not prefs or not prefs.primary_location:
-            print(f"⚠️ User {user_id} has no location configured")
+            print(f"WARNING: User {user_id} has no location configured")
             return False
         
         # Build digest request
@@ -59,6 +59,8 @@ def generate_digest_for_user(user_id: int, db: Session) -> bool:
         }
         
         # Generate digest using news agents
+        # Import here to avoid circular import at module level
+        from main import build_news_digest_graph
         graph = build_news_digest_graph()
         state = {
             "messages": [],
@@ -100,11 +102,11 @@ def generate_digest_for_user(user_id: int, db: Session) -> bool:
                 digest.email_sent_at = datetime.now()
                 db.commit()
         
-        print(f"✅ Digest generated for user {user_id} ({user.email}) - Location: {prefs.primary_location}")
+        print(f"Digest generated for user {user_id} ({user.email}) - Location: {prefs.primary_location}")
         return True
         
     except Exception as e:
-        print(f"❌ Error generating digest for user {user_id}: {str(e)}")
+        print(f"Error generating digest for user {user_id}: {str(e)}")
         db.rollback()
         return False
 
@@ -116,7 +118,7 @@ def generate_all_digests_job():
     grouped by timezone to deliver at their local preferred time.
     """
     print(f"\n{'='*60}")
-    print(f"🔄 Starting daily digest generation job at {datetime.now(pytz.UTC)}")
+    print(f"Starting daily digest generation job at {datetime.now(pytz.UTC)}")
     print(f"{'='*60}\n")
     
     db = SessionLocal()
@@ -132,10 +134,10 @@ def generate_all_digests_job():
         ).all()
         
         if not users:
-            print("ℹ️ No users with active subscriptions found")
+            print("INFO: No users with active subscriptions found")
             return
         
-        print(f"📧 Found {len(users)} users with active subscriptions\n")
+        print(f"INFO: Found {len(users)} users with active subscriptions\n")
         
         success_count = 0
         failed_count = 0
@@ -163,16 +165,16 @@ def generate_all_digests_job():
                 else:
                     failed_count += 1
             else:
-                print(f"⏰ Skipping user {user.id} - not their notification time yet")
+                print(f"INFO: Skipping user {user.id} - not their notification time yet")
         
         print(f"\n{'='*60}")
-        print(f"✅ Daily digest job completed")
+        print(f"Daily digest job completed")
         print(f"   Successfully generated: {success_count}")
         print(f"   Failed: {failed_count}")
         print(f"{'='*60}\n")
         
     except Exception as e:
-        print(f"❌ Error in daily digest job: {str(e)}")
+        print(f"ERROR: Error in daily digest job: {str(e)}")
     finally:
         db.close()
 
@@ -180,7 +182,7 @@ def generate_all_digests_job():
 def start_scheduler():
     """Start the background scheduler for automated digest generation."""
     if not ENABLE_SCHEDULER:
-        print("ℹ️ Scheduler disabled via ENABLE_SCHEDULER environment variable")
+        print("INFO: Scheduler disabled via ENABLE_SCHEDULER environment variable")
         return
     
     # Parse digest generation time
@@ -200,7 +202,7 @@ def start_scheduler():
     )
     
     scheduler.start()
-    print(f"✅ Scheduler started - Daily digest job will run every hour (UTC)")
+    print("Scheduler started - Daily digest job will run every hour (UTC)")
     print(f"   Configured base time: {DIGEST_GENERATION_TIME} UTC")
 
 
@@ -208,7 +210,7 @@ def stop_scheduler():
     """Stop the background scheduler."""
     if scheduler.running:
         scheduler.shutdown(wait=False)
-        print("🛑 Scheduler stopped")
+        print("Scheduler stopped")
 
 
 def generate_digest_now(user_id: int) -> bool:

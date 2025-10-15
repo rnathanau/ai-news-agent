@@ -132,11 +132,11 @@ EMAIL_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ Daily Safety Digest</h1>
+            <h1>Daily Safety Digest</h1>
             <div class="date">{{ date }}</div>
         </div>
         
-        <div class="location">📍 {{ location }}</div>
+        <div class="location">Location: {{ location }}</div>
         
         {% if has_incidents %}
             <div class="summary">
@@ -165,7 +165,7 @@ EMAIL_TEMPLATE = """
             </center>
         {% else %}
             <div class="no-incidents">
-                <h2>✅ All Clear!</h2>
+                <h2>All Clear!</h2>
                 <p>No significant safety incidents to report in your area today.<br>Stay safe and have a great day!</p>
             </div>
         {% endif %}
@@ -247,7 +247,7 @@ class EmailService:
             )
             
             # Create email message
-            subject = f"🛡️ Safety Digest for {location} - {datetime.now().strftime('%b %d')}"
+            subject = f"Safety Digest for {location} - {datetime.now().strftime('%b %d')}"
             
             message = Mail(
                 from_email=Email(FROM_EMAIL, "AI News Agent"),
@@ -260,14 +260,14 @@ class EmailService:
             response = self.client.send(message)
             
             if response.status_code in [200, 201, 202]:
-                print(f"✅ Email sent successfully to {to_email}")
+                print(f"Email sent successfully to {to_email}")
                 return True
             else:
-                print(f"❌ Failed to send email. Status: {response.status_code}")
+                print(f"Failed to send email. Status: {response.status_code}")
                 return False
                 
         except Exception as e:
-            print(f"❌ Error sending email to {to_email}: {str(e)}")
+            print(f"Error sending email to {to_email}: {str(e)}")
             return False
     
     def send_test_email(self, to_email: str) -> bool:
