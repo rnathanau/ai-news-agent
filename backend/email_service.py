@@ -246,15 +246,53 @@ class EmailService:
                 unsubscribe_url=unsubscribe_url
             )
             
-            # Create email message
-            subject = f"Safety Digest for {location} - {datetime.now().strftime('%b %d')}"
+            # Create plain text version (improves deliverability)
+            plain_text = f"""
+Daily Safety Digest - {date_str}
+Location: {location}
+
+{overview}
+
+"""
+            if has_incidents:
+                for idx, article in enumerate(articles[:3], 1):
+                    plain_text += f"{idx}. {article.get('title', 'Untitled')}\n"
+                    plain_text += f"   {article.get('summary', '')}\n"
+                    if article.get('url') and article.get('url') != '#':
+                        plain_text += f"   Read more: {article['url']}\n"
+                    plain_text += "\n"
+            else:
+                plain_text += "All Clear! No significant safety incidents to report today.\n\n"
+            
+            plain_text += f"\nView dashboard: {dashboard_url}\n"
+            plain_text += f"Manage preferences: {unsubscribe_url}\n"
+            
+            # Create email message with personalized subject
+            subject = f"Your Daily {location} Safety Update - {datetime.now().strftime('%b %d, %Y')}"
             
             message = Mail(
-                from_email=Email(FROM_EMAIL, "AI News Agent"),
+                from_email=Email(FROM_EMAIL, "Safety News Alert"),
                 to_emails=To(to_email),
                 subject=subject,
+                plain_text_content=Content("text/plain", plain_text),
                 html_content=Content("text/html", html_content)
             )
+            
+            # Add categories for tracking and better deliverability
+            message.add_category("daily_digest")
+            message.add_category("safety_news")
+            
+            # Add custom args for tracking
+            message.custom_arg = [
+                {
+                    "key": "digest_id",
+                    "value": str(digest_id) if digest_id else "test"
+                },
+                {
+                    "key": "location",
+                    "value": location
+                }
+            ]
             
             # Send email
             response = self.client.send(message)
