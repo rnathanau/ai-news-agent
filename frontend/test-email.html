@@ -180,6 +180,9 @@
     </div>
 
     <script>
+        // Get API base URL (works for both local and production)
+        const API_BASE_URL = window.location.origin;
+
         // Get auth token from localStorage
         function getAuthToken() {
             return localStorage.getItem('token');
@@ -200,7 +203,7 @@
             loadingDiv.style.display = 'block';
 
             try {
-                const response = await fetch('http://localhost:8000/api/test-email', {
+                const response = await fetch(`${API_BASE_URL}/api/test-email`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${getAuthToken()}`,
@@ -235,7 +238,7 @@
             loadingDiv.style.display = 'block';
 
             try {
-                const response = await fetch('http://localhost:8000/api/digests/generate-now', {
+                const response = await fetch(`${API_BASE_URL}/api/digests/generate-now`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${getAuthToken()}`,
