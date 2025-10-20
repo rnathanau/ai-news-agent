@@ -1313,6 +1313,15 @@ def serve_profile():
     return {"message": "frontend/profile.html not found"}
 
 
+@app.get("/test-email.html")
+def serve_test_email():
+    here = os.path.dirname(__file__)
+    path = os.path.join(here, "..", "frontend", "test-email.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return {"message": "frontend/test-email.html not found"}
+
+
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "ai-news-agent"}
@@ -1597,6 +1606,61 @@ if _TRACING:
             LiteLLMInstrumentor().instrument(tracer_provider=tp, skip_dep_check=True)
     except Exception:
         pass
+
+
+# ============================================================================
+# Test & Manual Trigger Endpoints
+# ============================================================================
+
+@app.post("/api/test-email", tags=["Testing"])
+def test_email(current_user: models.User = Depends(auth.get_current_user)):
+    """Send a test email to verify SendGrid configuration."""
+    from email_service import email_service
+    
+    success = email_service.send_test_email(current_user.email)
+    
+    if success:
+        return {
+            "status": "success",
+            "message": f"Test email sent to {current_user.email}. Check your inbox (and spam folder)!"
+        }
+    else:
+        return {
+            "status": "error",
+            "message": "Failed to send test email. Check that SENDGRID_API_KEY is configured in backend/.env"
+        }
+
+
+@app.post("/api/digests/generate-now", response_model=schemas.NewsDigestResponse, tags=["Digests"])
+def generate_digest_now(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+    send_email: bool = True
+):
+    """Manually trigger digest generation and optionally send email immediately."""
+    from scheduler import generate_digest_for_user
+    
+    # Generate digest
+    success = generate_digest_for_user(current_user.id, db)
+    
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate digest. Check logs for details."
+        )
+    
+    # Get the most recent digest
+    digest = db.query(models.NewsDigest).filter(
+        models.NewsDigest.user_id == current_user.id
+    ).order_by(
+        models.NewsDigest.digest_date.desc()
+    ).first()
+    
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest generated but not found in database")
+    
+    return digest
+
 
 @app.post("/plan-trip", response_model=TripResponse)
 def plan_trip(req: TripRequest):
