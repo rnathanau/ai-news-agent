@@ -300,10 +300,15 @@ def _compact(text: str, limit: int = 200) -> str:
     return truncated.rstrip(",.;- ")
 
 
-def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+def _search_api_articles(query: str, max_results: int = 5, days: int = 2) -> List[Dict[str, Any]]:
     """Search for news articles with full metadata including URLs.
     
-    Returns list of articles with: title, url, content, source
+    Args:
+        query: Search query
+        max_results: Maximum number of results to return
+        days: Only return articles from the last N days (default: 2)
+    
+    Returns list of articles with: title, url, content, source, published_at
     """
     query = query.strip()
     if not query:
@@ -321,8 +326,10 @@ def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any
                         "api_key": tavily_key,
                         "query": query,
                         "max_results": max_results,
-                        "search_depth": "basic",
+                        "search_depth": "advanced",  # Use advanced for better recency
                         "include_answer": False,
+                        "include_domains": [],  # Allow all news domains
+                        "days": days,  # Only search last N days
                     },
                 )
                 print(f"[Tavily] Response status: {resp.status_code}")
@@ -333,17 +340,42 @@ def _search_api_articles(query: str, max_results: int = 5) -> List[Dict[str, Any
                 print(f"[Tavily] Found {results_count} results")
                 
                 articles = []
+                current_time = datetime.now()
+                
                 for item in data.get("results", []):
+                    url = item.get("url", "")
+                    
+                    # Skip invalid or example URLs
+                    if not url or url == "#" or "example.com" in url or "localhost" in url:
+                        print(f"[Tavily] Skipping invalid URL: {url}")
+                        continue
+                    
+                    # Parse published date if available
+                    published_at = item.get("published_date")
+                    if published_at:
+                        try:
+                            # Try to parse the date
+                            if isinstance(published_at, str):
+                                from dateutil import parser as date_parser
+                                pub_date = date_parser.parse(published_at)
+                                # Filter out articles older than specified days
+                                age_days = (current_time - pub_date.replace(tzinfo=None)).days
+                                if age_days > days:
+                                    print(f"[Tavily] Skipping old article (age: {age_days} days): {item.get('title', 'Untitled')}")
+                                    continue
+                        except Exception as e:
+                            print(f"[Tavily] Error parsing date {published_at}: {e}")
+                    
                     articles.append({
                         "title": item.get("title", "Untitled"),
-                        "url": item.get("url", "#"),
+                        "url": url,
                         "content": item.get("content", ""),
-                        "source": item.get("url", "").split("/")[2] if item.get("url") else "Unknown",
-                        "published_at": item.get("published_date")
+                        "source": url.split("/")[2] if url and len(url.split("/")) > 2 else "Unknown",
+                        "published_at": published_at
                     })
                 
                 if articles:
-                    print(f"[Tavily] Returning {len(articles)} articles")
+                    print(f"[Tavily] Returning {len(articles)} recent articles")
                     print(f"[Tavily] First article: {articles[0].get('title', 'No title')}")
                 return articles
         except Exception as e:
@@ -995,8 +1027,13 @@ def monitor_agent(state: NewsDigestState) -> NewsDigestState:
             res = agent.invoke(messages)
     
     # Try to get real articles from Tavily API first
-    query = f"{location} {keywords} news last {days_back} days"
-    real_articles = _search_api_articles(query, max_results=5)
+    # Improve query to be more specific for better relevance
+    from datetime import datetime, timedelta
+    date_range = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    query = f"{location} {keywords} after:{date_range}"
+    
+    print(f"[Monitor Agent] Searching with query: {query}")
+    real_articles = _search_api_articles(query, max_results=10, days=days_back)
     
     if real_articles:
         # Use real articles from Tavily
@@ -1005,29 +1042,24 @@ def monitor_agent(state: NewsDigestState) -> NewsDigestState:
             "found_via": "tavily_api"
         } for article in real_articles]
         calls.append({"agent": "monitor", "tool": "tavily_search", "args": {"query": query}})
+        print(f"[Monitor Agent] Found {len(articles)} real articles from Tavily")
     elif getattr(res, "tool_calls", None):
         # Fallback to LLM tool calls if no Tavily results
+        print("[Monitor Agent] No Tavily results, using LLM tool calls")
         for c in res.tool_calls:
             calls.append({"agent": "monitor", "tool": c["name"], "args": c.get("args", {})})
         
         tool_node = ToolNode(tools)
         tr = tool_node.invoke({"messages": [res]})
         
-        # Generate fallback articles with mock URLs
-        import hashlib
+        # IMPORTANT: Only use LLM fallback if explicitly needed
+        # We should NOT show fake URLs to users
         articles = []
-        for idx, msg in enumerate(tr["messages"], 1):
-            content = msg.content if hasattr(msg, 'content') else str(msg)
-            content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
-            articles.append({
-                "title": f"Safety Incident #{idx}",
-                "content": content,
-                "source": "Local News Network",
-                "url": f"https://localnews.example.com/article/{content_hash}",
-                "found_via": "llm_fallback"
-            })
+        print("[Monitor Agent] WARNING: Using LLM fallback - no real articles found")
+        print("[Monitor Agent] Consider adding TAVILY_API_KEY to environment for real news")
     else:
         articles = []
+        print("[Monitor Agent] No articles found")
     
     return {
         "messages": [SystemMessage(content=f"Found {len(articles)} potential articles")],
@@ -1043,10 +1075,48 @@ def relevance_agent(state: NewsDigestState) -> NewsDigestState:
     raw_articles = state.get("raw_articles", [])
     severity_threshold = req.get("severity_threshold", "all")
     radius_km = req.get("radius_km", 5)
+    days_back = req.get("days_back", 1)
     
     if not raw_articles:
         return {
             "messages": [SystemMessage(content="No articles to rank")],
+            "ranked_articles": [],
+            "tool_calls": []
+        }
+    
+    # Filter out articles with invalid URLs first
+    from datetime import datetime, timedelta
+    cutoff_date = datetime.now() - timedelta(days=days_back + 1)  # Allow 1 extra day buffer
+    
+    valid_articles = []
+    for article in raw_articles:
+        url = article.get("url", "")
+        
+        # Skip invalid URLs
+        if not url or url == "#" or "example.com" in url or "localhost" in url:
+            print(f"[Relevance Agent] Filtering out article with invalid URL: {article.get('title', 'Untitled')}")
+            continue
+        
+        # Check recency if published_at is available
+        published_at = article.get("published_at")
+        if published_at:
+            try:
+                if isinstance(published_at, str):
+                    from dateutil import parser as date_parser
+                    pub_date = date_parser.parse(published_at)
+                    if pub_date.replace(tzinfo=None) < cutoff_date:
+                        print(f"[Relevance Agent] Filtering out old article: {article.get('title', 'Untitled')} (published: {published_at})")
+                        continue
+            except Exception as e:
+                print(f"[Relevance Agent] Error parsing date for {article.get('title', 'Untitled')}: {e}")
+        
+        valid_articles.append(article)
+    
+    print(f"[Relevance Agent] Filtered to {len(valid_articles)} valid recent articles from {len(raw_articles)} total")
+    
+    if not valid_articles:
+        return {
+            "messages": [SystemMessage(content="No valid recent articles found")],
             "ranked_articles": [],
             "tool_calls": []
         }
@@ -1056,20 +1126,22 @@ def relevance_agent(state: NewsDigestState) -> NewsDigestState:
         "Analyze {num_articles} articles and rank them by:\n"
         "1. Proximity to {location} (within {radius_km}km)\n"
         "2. Severity ({severity_threshold} threshold)\n"
-        "3. Recency\n"
+        "3. Recency (last {days_back} days)\n"
         "Return the top 3-5 most relevant articles."
     )
     vars_ = {
-        "num_articles": len(raw_articles),
+        "num_articles": len(valid_articles),
         "location": location,
         "radius_km": radius_km,
-        "severity_threshold": severity_threshold
+        "severity_threshold": severity_threshold,
+        "days_back": days_back
     }
     
     messages = [SystemMessage(content=prompt_t.format(**vars_))]
     # Add article context
-    for idx, article in enumerate(raw_articles[:10], 1):  # Limit to first 10
-        messages.append(HumanMessage(content=f"Article {idx}: {article.get('title', 'Untitled')} - {article.get('content', '')[:200]}"))
+    for idx, article in enumerate(valid_articles[:10], 1):  # Limit to first 10
+        pub_info = f" (Published: {article.get('published_at', 'unknown')})" if article.get('published_at') else ""
+        messages.append(HumanMessage(content=f"Article {idx}: {article.get('title', 'Untitled')}{pub_info} - {article.get('content', '')[:200]}"))
     
     tools = [calculate_proximity, severity_score, extract_location_details]
     agent = llm.bind_tools(tools)
@@ -1081,7 +1153,7 @@ def relevance_agent(state: NewsDigestState) -> NewsDigestState:
             current_span = trace.get_current_span()
             if current_span:
                 current_span.set_attribute("metadata.agent_type", "relevance")
-                current_span.set_attribute("metadata.articles_count", len(raw_articles))
+                current_span.set_attribute("metadata.articles_count", len(valid_articles))
         
         with using_prompt_template(template=prompt_t, variables=vars_, version="v1"):
             res = agent.invoke(messages)
@@ -1093,8 +1165,9 @@ def relevance_agent(state: NewsDigestState) -> NewsDigestState:
         tool_node = ToolNode(tools)
         tr = tool_node.invoke({"messages": [res]})
     
-    # For simplicity, take top 3 articles
-    ranked = raw_articles[:3]
+    # Take top 5 articles (more than 3 to give digest agent more options)
+    ranked = valid_articles[:5]
+    print(f"[Relevance Agent] Ranked top {len(ranked)} articles")
     
     return {
         "messages": [SystemMessage(content=f"Ranked {len(ranked)} relevant articles")],
