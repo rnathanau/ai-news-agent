@@ -328,8 +328,9 @@ def _search_api_articles(query: str, max_results: int = 5, days: int = 2) -> Lis
                         "max_results": max_results,
                         "search_depth": "advanced",  # Use advanced for better recency
                         "include_answer": False,
-                        "include_domains": [],  # Allow all news domains
+                        "topic": "news",  # Force news-only results
                         "days": days,  # Only search last N days
+                        "exclude_domains": ["wikipedia.org", "wikimedia.org", "britannica.com"],  # No encyclopedias
                     },
                 )
                 print(f"[Tavily] Response status: {resp.status_code}")
@@ -1027,13 +1028,16 @@ def monitor_agent(state: NewsDigestState) -> NewsDigestState:
             res = agent.invoke(messages)
     
     # Try to get real articles from Tavily API first
-    # Improve query to be more specific for better relevance
+    # Craft highly specific query for local breaking news only
     from datetime import datetime, timedelta
     date_range = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    query = f"{location} {keywords} after:{date_range}"
     
-    print(f"[Monitor Agent] Searching with query: {query}")
-    real_articles = _search_api_articles(query, max_results=10, days=days_back)
+    # Use news-specific search with site restrictions to avoid Wikipedia/stats
+    # Focus on local news outlets, police reports, and breaking news
+    query = f'"{location}" ({keywords}) site:.com.au OR site:.gov.au OR site:police OR site:news after:{date_range} -site:wikipedia.org -site:abc.net.au/news/archive'
+    
+    print(f"[Monitor Agent] Searching for breaking news with query: {query}")
+    real_articles = _search_api_articles(query, max_results=15, days=days_back)
     
     if real_articles:
         # Use real articles from Tavily

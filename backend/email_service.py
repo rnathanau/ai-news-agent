@@ -90,6 +90,13 @@ EMAIL_TEMPLATE = """
         .article .content {
             color: #4b5563;
             font-size: 14px;
+            line-height: 1.7;
+        }
+        .article .full-content {
+            color: #374151;
+            font-size: 14px;
+            margin-top: 10px;
+            line-height: 1.8;
         }
         .article a {
             color: #2563eb;
@@ -148,15 +155,22 @@ EMAIL_TEMPLATE = """
             <div class="article">
                 <h3>{{ loop.index }}. {{ article.title }}</h3>
                 <div class="meta">
-                    {% if article.source %}{{ article.source }} • {% endif %}
-                    {% if article.published_at %}{{ article.published_at }}{% endif %}
+                    {% if article.source %}📰 {{ article.source }} • {% endif %}
+                    {% if article.published_at %}📅 {{ article.published_at }}{% endif %}
                 </div>
                 <div class="content">
-                    {{ article.summary }}
-                    {% if article.url and article.url != '#' %}
-                    <br><a href="{{ article.url }}">Read full article →</a>
-                    {% endif %}
+                    <strong>Summary:</strong> {{ article.summary }}
                 </div>
+                {% if article.content and article.content|length > 100 %}
+                <div class="full-content">
+                    {{ article.content[:400] }}{% if article.content|length > 400 %}...{% endif %}
+                </div>
+                {% endif %}
+                {% if article.url and article.url != '#' %}
+                <div style="margin-top: 10px;">
+                    <a href="{{ article.url }}" style="font-size: 13px;">📖 Read full article on {{ article.source }}</a>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
             
@@ -222,9 +236,10 @@ class EmailService:
             return False
         
         try:
-            # Prepare template data
-            dashboard_url = f"https://newsagent.com/dashboard.html"  # Update with actual domain
-            unsubscribe_url = f"https://newsagent.com/profile.html"  # Update with actual domain
+            # Prepare template data with actual Render domain
+            app_domain = os.getenv("APP_DOMAIN", "https://ai-news-agent-foz7.onrender.com")
+            dashboard_url = f"{app_domain}/dashboard.html"
+            unsubscribe_url = f"{app_domain}/profile.html"
             
             has_incidents = len(articles) > 0
             
@@ -241,7 +256,7 @@ class EmailService:
                 location=location,
                 has_incidents=has_incidents,
                 overview=overview,
-                articles=articles[:3],  # Top 3 only
+                articles=articles[:5],  # Top 5 articles for comprehensive coverage
                 dashboard_url=dashboard_url,
                 unsubscribe_url=unsubscribe_url
             )
@@ -255,7 +270,7 @@ Location: {location}
 
 """
             if has_incidents:
-                for idx, article in enumerate(articles[:3], 1):
+                for idx, article in enumerate(articles[:5], 1):
                     plain_text += f"{idx}. {article.get('title', 'Untitled')}\n"
                     plain_text += f"   {article.get('summary', '')}\n"
                     if article.get('url') and article.get('url') != '#':

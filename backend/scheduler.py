@@ -18,6 +18,12 @@ load_dotenv()
 ENABLE_SCHEDULER = os.getenv("ENABLE_SCHEDULER", "1").lower() not in {"0", "false", "no"}
 DIGEST_GENERATION_TIME = os.getenv("DIGEST_GENERATION_TIME", "00:00")  # UTC time
 
+# Delivery slot time mappings (in local time)
+DELIVERY_SLOTS = {
+    "morning": "07:00",    # 6-9 AM - default 7 AM
+    "afternoon": "13:00",  # 12-2 PM - default 1 PM  
+    "evening": "18:00"     # 6-8 PM - default 6 PM
+}
 
 scheduler = BackgroundScheduler(timezone=pytz.UTC)
 

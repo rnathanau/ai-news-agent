@@ -85,6 +85,7 @@ class UserPreferencesBase(BaseModel):
     additional_locations: Optional[List[str]] = Field(default_factory=list)
     email_notifications: Optional[bool] = True
     notification_time: Optional[str] = Field("07:00", pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")
+    delivery_slot: Optional[str] = Field("morning", pattern=r"^(morning|afternoon|evening)$")
     timezone: Optional[str] = Field("UTC", max_length=50)
     severity_threshold: Optional[str] = Field("all", pattern=r"^(all|medium|high)$")
     radius_km: Optional[int] = Field(5, ge=1, le=100)

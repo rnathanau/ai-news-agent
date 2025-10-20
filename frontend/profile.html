@@ -156,6 +156,39 @@
           </div>
 
           <div>
+            <label class="block text-sm font-medium text-neutral-800 mb-2">
+              Delivery Time
+            </label>
+            <div class="grid grid-cols-3 gap-3">
+              <label class="relative flex flex-col items-center cursor-pointer">
+                <input type="radio" name="deliverySlot" value="morning" class="sr-only peer" checked>
+                <div class="w-full rounded-lg border-2 border-neutral-300 bg-white p-4 text-center peer-checked:border-blue-600 peer-checked:bg-blue-50 transition">
+                  <div class="text-2xl mb-1">🌅</div>
+                  <div class="font-medium">Morning</div>
+                  <div class="text-xs text-neutral-500">7:00 AM</div>
+                </div>
+              </label>
+              <label class="relative flex flex-col items-center cursor-pointer">
+                <input type="radio" name="deliverySlot" value="afternoon" class="sr-only peer">
+                <div class="w-full rounded-lg border-2 border-neutral-300 bg-white p-4 text-center peer-checked:border-blue-600 peer-checked:bg-blue-50 transition">
+                  <div class="text-2xl mb-1">☀️</div>
+                  <div class="font-medium">Afternoon</div>
+                  <div class="text-xs text-neutral-500">1:00 PM</div>
+                </div>
+              </label>
+              <label class="relative flex flex-col items-center cursor-pointer">
+                <input type="radio" name="deliverySlot" value="evening" class="sr-only peer">
+                <div class="w-full rounded-lg border-2 border-neutral-300 bg-white p-4 text-center peer-checked:border-blue-600 peer-checked:bg-blue-50 transition">
+                  <div class="text-2xl mb-1">🌆</div>
+                  <div class="font-medium">Evening</div>
+                  <div class="text-xs text-neutral-500">6:00 PM</div>
+                </div>
+              </label>
+            </div>
+            <p class="mt-2 text-xs text-neutral-500">Choose when you want to receive your daily safety digest</p>
+          </div>
+
+          <div class="hidden">
             <label for="notificationTime" class="block text-sm font-medium text-neutral-800 mb-2">
               Notification Time (local)
             </label>
@@ -165,7 +198,6 @@
               value="07:00"
               class="w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-neutral-900"
             />
-            <p class="mt-1 text-xs text-neutral-500">Time to receive your daily digest (in your local timezone)</p>
           </div>
 
           <div>
@@ -262,6 +294,15 @@
         document.getElementById('emailNotifications').checked = prefs.email_notifications !== false;
         document.getElementById('notificationTime').value = prefs.notification_time || '07:00';
         document.getElementById('timezone').value = prefs.timezone || 'UTC';
+        
+        // Set delivery slot
+        const deliverySlot = prefs.delivery_slot || 'morning';
+        const radioButtons = document.getElementsByName('deliverySlot');
+        radioButtons.forEach(radio => {
+          if (radio.value === deliverySlot) {
+            radio.checked = true;
+          }
+        });
       } catch (error) {
         console.error('Failed to load preferences:', error);
       }
@@ -314,10 +355,19 @@
       const notification_time = document.getElementById('notificationTime').value;
       const timezone = document.getElementById('timezone').value;
       
+      // Get selected delivery slot
+      const deliverySlotRadios = document.getElementsByName('deliverySlot');
+      let delivery_slot = 'morning';
+      deliverySlotRadios.forEach(radio => {
+        if (radio.checked) {
+          delivery_slot = radio.value;
+        }
+      });
+      
       try {
         await apiCall('/api/preferences', {
           method: 'PUT',
-          body: JSON.stringify({ email_notifications, notification_time, timezone })
+          body: JSON.stringify({ email_notifications, notification_time, timezone, delivery_slot })
         });
         document.getElementById('notificationSuccess').classList.remove('hidden');
         setTimeout(() => {
