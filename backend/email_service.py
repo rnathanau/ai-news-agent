@@ -24,16 +24,26 @@ def _is_email_enabled():
     """Check if email is enabled (API key is set)."""
     return bool(_get_sendgrid_api_key())
 
-def _get_time_based_greeting(location: str) -> dict:
-    """Get time-based greeting and subject line.
+def _get_time_based_greeting(location: str, timezone_str: str = "UTC") -> dict:
+    """Get time-based greeting and subject line based on user's timezone.
     
     Args:
         location: Location name for personalization
+        timezone_str: User's timezone (e.g., "Australia/Melbourne", "America/New_York")
     
     Returns:
         dict with 'subject', 'greeting', and 'emoji' keys
     """
-    hour = datetime.now().hour
+    import pytz
+    
+    # Get current time in user's timezone
+    try:
+        user_tz = pytz.timezone(timezone_str)
+        local_time = datetime.now(user_tz)
+        hour = local_time.hour
+    except:
+        # Fallback to UTC if timezone is invalid
+        hour = datetime.now().hour
     
     if 5 <= hour < 12:
         return {
@@ -403,7 +413,8 @@ class EmailService:
         location: str,
         articles: List[dict],
         summary: str,
-        digest_id: Optional[int] = None
+        digest_id: Optional[int] = None,
+        timezone: str = "UTC"
     ) -> bool:
         """Send a digest email to a user.
         
@@ -413,6 +424,7 @@ class EmailService:
             articles: List of article dicts with title, summary, url, source
             summary: Overall digest summary
             digest_id: Optional digest ID for dashboard link
+            timezone: User's timezone for time-based greeting
         
         Returns:
             True if email sent successfully, False otherwise
@@ -448,8 +460,8 @@ class EmailService:
             # Format date
             date_str = datetime.now().strftime("%A, %B %d, %Y")
             
-            # Get time-based greeting
-            time_greeting = _get_time_based_greeting(location)
+            # Get time-based greeting using user's timezone
+            time_greeting = _get_time_based_greeting(location, timezone)
             
             print("DEBUG: About to render HTML template")
             # Render HTML template
@@ -599,7 +611,7 @@ Location: {location}
 email_service = EmailService()
 
 
-def send_digest_email(to_email: str, location: str, articles: List[dict], summary: str, digest_id: Optional[int] = None) -> bool:
+def send_digest_email(to_email: str, location: str, articles: List[dict], summary: str, digest_id: Optional[int] = None, timezone: str = "UTC") -> bool:
     """Convenience function to send digest email.
     
     Args:
@@ -608,9 +620,10 @@ def send_digest_email(to_email: str, location: str, articles: List[dict], summar
         articles: List of article dicts
         summary: Overall digest summary
         digest_id: Optional digest ID
+        timezone: User's timezone for time-based greeting
     
     Returns:
         True if sent successfully
     """
-    return email_service.send_digest_email(to_email, location, articles, summary, digest_id)
+    return email_service.send_digest_email(to_email, location, articles, summary, digest_id, timezone)
 

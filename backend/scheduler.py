@@ -100,7 +100,8 @@ def generate_digest_for_user(user_id: int, db: Session) -> bool:
                 location=prefs.primary_location,
                 articles=articles,
                 summary=final_digest,
-                digest_id=digest.id
+                digest_id=digest.id,
+                timezone=prefs.timezone or "UTC"
             )
             
             if email_sent:
