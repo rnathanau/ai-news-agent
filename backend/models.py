@@ -43,7 +43,7 @@ class UserPreferences(Base):
     # Notification preferences
     email_notifications = Column(Boolean, default=True)
     notification_time = Column(String(5), default="07:00")  # Format: "HH:MM" in user's local time
-    delivery_slot = Column(String(20), default="morning")  # "morning" (6-9AM), "afternoon" (12-2PM), "evening" (6-8PM)
+    delivery_slot = Column(String(20), default="morning", nullable=True)  # "morning" (6-9AM), "afternoon" (12-2PM), "evening" (6-8PM)
     timezone = Column(String(50), default="UTC")  # e.g., "America/New_York", "Australia/Melbourne"
     
     # Content preferences
