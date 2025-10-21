@@ -24,184 +24,352 @@ def _is_email_enabled():
     """Check if email is enabled (API key is set)."""
     return bool(_get_sendgrid_api_key())
 
+def _get_time_based_greeting(location: str) -> dict:
+    """Get time-based greeting and subject line.
+    
+    Args:
+        location: Location name for personalization
+    
+    Returns:
+        dict with 'subject', 'greeting', and 'emoji' keys
+    """
+    hour = datetime.now().hour
+    
+    if 5 <= hour < 12:
+        return {
+            "subject": f"🌅 Good Morning! Your {location} Safety Digest",
+            "greeting": "Good Morning",
+            "emoji": "🌅",
+            "time_of_day": "morning"
+        }
+    elif 12 <= hour < 17:
+        return {
+            "subject": f"☀️ Afternoon Check-In: {location} Safety Update",
+            "greeting": "Good Afternoon",
+            "emoji": "☀️",
+            "time_of_day": "afternoon"
+        }
+    else:
+        return {
+            "subject": f"🌆 Evening Briefing: Your {location} Safety Digest",
+            "greeting": "Good Evening",
+            "emoji": "🌆",
+            "time_of_day": "evening"
+        }
 
-# HTML Email Template
+
+# HTML Email Template - Modern & Attractive Design
 EMAIL_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Safety Digest</title>
+    <title>HeadsUp Safety Digest</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+            line-height: 1.7;
+            color: #1f2937;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px 15px;
         }
         .container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 650px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
         .header {
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
         }
         .header h1 {
-            margin: 0;
-            color: #1e40af;
-            font-size: 24px;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .header .date {
-            color: #6b7280;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        .location {
-            display: inline-block;
-            background-color: #dbeafe;
-            color: #1e40af;
-            padding: 5px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-        .summary {
-            background-color: #f9fafb;
-            border-left: 4px solid #2563eb;
-            padding: 15px;
-            margin-bottom: 30px;
-            font-size: 15px;
-        }
-        .article {
-            border-left: 3px solid #e5e7eb;
-            padding: 15px;
-            margin-bottom: 20px;
-            background-color: #fafafa;
-        }
-        .article h3 {
-            margin: 0 0 10px 0;
-            color: #1f2937;
-            font-size: 18px;
-        }
-        .article .meta {
-            color: #6b7280;
-            font-size: 13px;
-            margin-bottom: 10px;
-        }
-        .article .content {
-            color: #4b5563;
-            font-size: 14px;
-            line-height: 1.7;
-        }
-        .article .full-content {
-            color: #374151;
-            font-size: 14px;
-            margin-top: 10px;
-            line-height: 1.8;
-        }
-        .article a {
-            color: #2563eb;
-            text-decoration: none;
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.95;
             font-weight: 500;
         }
-        .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            text-align: center;
-            color: #6b7280;
-            font-size: 12px;
+        .content {
+            padding: 35px 30px;
         }
-        .footer a {
-            color: #2563eb;
-            text-decoration: none;
+        .location-badge {
+            display: inline-flex;
+            align-items: center;
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            border: 2px solid #dbeafe;
         }
-        .button {
+        .overview-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left: 5px solid #3b82f6;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .overview-card strong {
+            color: #1e40af;
+            font-size: 17px;
+        }
+        .incident-card {
+            background: #fafafa;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .incident-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .incident-number {
             display: inline-block;
-            background-color: #2563eb;
-            color: #ffffff !important;
-            padding: 12px 24px;
-            border-radius: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 32px;
+            font-weight: 700;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        .incident-title {
+            color: #111827;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        .incident-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .meta-item {
+            display: inline-flex;
+            align-items: center;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        .incident-summary {
+            color: #374151;
+            font-size: 15px;
+            line-height: 1.8;
+            margin-bottom: 12px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #e5e7eb;
+        }
+        .incident-details {
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.8;
+            padding: 14px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .read-more {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 14px;
+            color: #3b82f6;
             text-decoration: none;
             font-weight: 600;
-            margin-top: 20px;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .read-more:hover {
+            color: #1d4ed8;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white !important;
+            padding: 16px 36px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
         }
         .no-incidents {
             text-align: center;
-            padding: 40px 20px;
-            color: #059669;
+            padding: 60px 30px;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        .no-incidents-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
         }
         .no-incidents h2 {
-            color: #059669;
-            margin-bottom: 10px;
+            color: #047857;
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+        .no-incidents p {
+            color: #065f46;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-brand {
+            font-weight: 700;
+            font-size: 14px;
+            color: #6366f1;
+            margin-bottom: 15px;
+        }
+        .footer-links {
+            margin: 15px 0;
+        }
+        .footer-links a {
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 12px;
+            font-size: 13px;
+        }
+        .footer-note {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 26px; }
+            .incident-title { font-size: 18px; }
+            .content { padding: 25px 20px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>Daily Safety Digest</h1>
-            <div class="date">{{ date }}</div>
+            <h1>{{ greeting_emoji }} {{ greeting }}!</h1>
+            <div class="subtitle">{{ date }}</div>
         </div>
         
-        <div class="location">Location: {{ location }}</div>
-        
-        {% if has_incidents %}
-            <div class="summary">
-                <strong>Today's Overview:</strong><br>
-                {{ overview }}
-            </div>
+        <!-- Main Content -->
+        <div class="content">
+            <div class="location-badge">📍 {{ location }}</div>
             
-            {% for article in articles %}
-            <div class="article">
-                <h3>{{ loop.index }}. {{ article.title }}</h3>
-                <div class="meta">
-                    {% if article.source %}📰 {{ article.source }} • {% endif %}
-                    {% if article.published_at %}📅 {{ article.published_at }}{% endif %}
+            {% if has_incidents %}
+                <!-- Overview -->
+                <div class="overview-card">
+                    <strong>Today's Overview</strong><br>
+                    {{ overview }}
                 </div>
-                <div class="content">
-                    <strong>Summary:</strong> {{ article.summary }}
+                
+                <!-- Incidents -->
+                {% for article in articles %}
+                <div class="incident-card">
+                    <div class="incident-title">
+                        <span class="incident-number">{{ loop.index }}</span>
+                        {{ article.title }}
+                    </div>
+                    
+                    <div class="incident-meta">
+                        {% if article.published_at %}
+                        <span class="meta-item">📅 {{ article.published_at }}</span>
+                        {% endif %}
+                        {% if article.source %}
+                        <span class="meta-item">📰 {{ article.source }}</span>
+                        {% endif %}
+                        {% if article.location %}
+                        <span class="meta-item">📍 {{ article.location }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="incident-summary">
+                        {{ article.summary }}
+                    </div>
+                    
+                    {% if article.content and article.content|length > 100 %}
+                    <div class="incident-details">
+                        {{ article.content[:450] }}{% if article.content|length > 450 %}...{% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if article.url and article.url != '#' %}
+                    <a href="{{ article.url }}" class="read-more">
+                        📖 Read full article →
+                    </a>
+                    {% endif %}
                 </div>
-                {% if article.content and article.content|length > 100 %}
-                <div class="full-content">
-                    {{ article.content[:400] }}{% if article.content|length > 400 %}...{% endif %}
+                {% endfor %}
+                
+                <!-- CTA -->
+                <center>
+                    <a href="{{ dashboard_url }}" class="cta-button">
+                        View Full Dashboard →
+                    </a>
+                </center>
+                
+            {% else %}
+                <!-- No Incidents -->
+                <div class="no-incidents">
+                    <div class="no-incidents-icon">✨🛡️✨</div>
+                    <h2>All Clear!</h2>
+                    <p>
+                        No significant safety incidents to report in your area today.<br>
+                        Stay safe and have a wonderful day!
+                    </p>
                 </div>
-                {% endif %}
-                {% if article.url and article.url != '#' %}
-                <div style="margin-top: 10px;">
-                    <a href="{{ article.url }}" style="font-size: 13px;">📖 Read full article on {{ article.source }}</a>
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
-            
-            <center>
-                <a href="{{ dashboard_url }}" class="button">View Full Digest</a>
-            </center>
-        {% else %}
-            <div class="no-incidents">
-                <h2>All Clear!</h2>
-                <p>No significant safety incidents to report in your area today.<br>Stay safe and have a great day!</p>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
         
+        <!-- Footer -->
         <div class="footer">
-            <p>
-                This digest was generated by AI News Agent<br>
-                <a href="{{ unsubscribe_url }}">Manage preferences</a> | 
-                <a href="{{ dashboard_url }}">View dashboard</a>
-            </p>
-            <p style="margin-top: 10px;">
-                You're receiving this because you subscribed to safety updates for {{ location }}.
-            </p>
+            <div class="footer-brand">⚡ HeadsUp Safety Alert</div>
+            <div class="footer-links">
+                <a href="{{ dashboard_url }}">Dashboard</a>
+                <a href="{{ unsubscribe_url }}">Manage Preferences</a>
+            </div>
+            <div class="footer-note">
+                You're receiving this because you subscribed to safety updates for {{ location }}.<br>
+                Powered by HeadsUp AI
+            </div>
         </div>
     </div>
 </body>
@@ -280,6 +448,9 @@ class EmailService:
             # Format date
             date_str = datetime.now().strftime("%A, %B %d, %Y")
             
+            # Get time-based greeting
+            time_greeting = _get_time_based_greeting(location)
+            
             print("DEBUG: About to render HTML template")
             # Render HTML template
             template = Template(EMAIL_TEMPLATE)
@@ -290,7 +461,9 @@ class EmailService:
                 overview=overview,
                 articles=articles[:5],  # Top 5 articles for comprehensive coverage
                 dashboard_url=dashboard_url,
-                unsubscribe_url=unsubscribe_url
+                unsubscribe_url=unsubscribe_url,
+                greeting=time_greeting["greeting"],
+                greeting_emoji=time_greeting["emoji"]
             )
             print("DEBUG: HTML template rendered successfully")
             
@@ -322,8 +495,8 @@ Location: {location}
             
             print("DEBUG: Plain text version created successfully")
             
-            # Create email message with personalized subject
-            subject = f"Your Daily {location} Safety Update - {datetime.now().strftime('%b %d, %Y')}"
+            # Create email message with time-based personalized subject
+            subject = time_greeting["subject"]
             
             message = Mail(
                 from_email=Email(from_email, "HeadsUp Safety Alert"),

@@ -156,16 +156,31 @@ def generate_all_digests_job():
             user_tz = pytz.timezone(prefs.timezone or "UTC")
             user_now = datetime.now(user_tz)
             
-            # Parse notification time (HH:MM format)
-            try:
-                hour, minute = map(int, prefs.notification_time.split(":"))
-            except:
-                hour, minute = 7, 0  # Default to 7:00 AM
+            # Get delivery slots (support both old and new format)
+            delivery_slots = prefs.delivery_slots or []
+            if not delivery_slots and hasattr(prefs, 'delivery_slot') and prefs.delivery_slot:
+                delivery_slots = [prefs.delivery_slot]
+            if not delivery_slots:
+                delivery_slots = ['morning']
             
-            # Check if current time matches user's preferred notification time (within 1 hour window)
-            time_diff = abs((user_now.hour * 60 + user_now.minute) - (hour * 60 + minute))
+            # Check if current time matches any of the user's delivery slots
+            should_generate = False
+            for slot in delivery_slots:
+                # Get time for this slot
+                slot_time = DELIVERY_SLOTS.get(slot, "07:00")
+                try:
+                    hour, minute = map(int, slot_time.split(":"))
+                except:
+                    hour, minute = 7, 0
+                
+                # Check if current time matches this slot (within 1 hour window)
+                time_diff = abs((user_now.hour * 60 + user_now.minute) - (hour * 60 + minute))
+                
+                if time_diff <= 60:  # Within 1 hour window
+                    should_generate = True
+                    break
             
-            if time_diff <= 60:  # Within 1 hour window
+            if should_generate:
                 if generate_digest_for_user(user.id, db):
                     success_count += 1
                 else:

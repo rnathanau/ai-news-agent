@@ -85,10 +85,18 @@ class UserPreferencesBase(BaseModel):
     additional_locations: Optional[List[str]] = Field(default_factory=list)
     email_notifications: Optional[bool] = True
     notification_time: Optional[str] = Field("07:00", pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")
-    delivery_slot: Optional[str] = Field("morning", pattern=r"^(morning|afternoon|evening)$")
+    delivery_slots: Optional[List[str]] = Field(default_factory=lambda: ["morning"])  # Can be ["morning", "afternoon", "evening"]
     timezone: Optional[str] = Field("UTC", max_length=50)
     severity_threshold: Optional[str] = Field("all", pattern=r"^(all|medium|high)$")
     radius_km: Optional[int] = Field(5, ge=1, le=100)
+    
+    @validator('delivery_slots')
+    def validate_delivery_slots(cls, v):
+        """Validate delivery slots are valid."""
+        valid_slots = {"morning", "afternoon", "evening"}
+        if v and not all(slot in valid_slots for slot in v):
+            raise ValueError(f'delivery_slots must only contain: {valid_slots}')
+        return v if v else ["morning"]
 
 
 class UserPreferencesCreate(UserPreferencesBase):
