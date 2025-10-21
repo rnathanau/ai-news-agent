@@ -16,7 +16,9 @@ def _get_sendgrid_api_key():
 
 def _get_from_email():
     """Get FROM_EMAIL from environment."""
-    return os.getenv("FROM_EMAIL", "notifications@newsagent.com")
+    email = os.getenv("FROM_EMAIL", "notifications@newsagent.com")
+    # Strip any whitespace or newlines
+    return email.strip() if email else "notifications@newsagent.com"
 
 def _is_email_enabled():
     """Check if email is enabled (API key is set)."""
