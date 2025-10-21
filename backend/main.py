@@ -1672,17 +1672,30 @@ def get_latest_digest(
     return digest
 
 
-# Initialize tracing once at startup, not per request
+# Initialize Arize AX tracing once at startup
 if _TRACING:
     try:
         space_id = os.getenv("ARIZE_SPACE_ID")
         api_key = os.getenv("ARIZE_API_KEY")
         if space_id and api_key:
-            tp = register(space_id=space_id, api_key=api_key, project_name="ai-trip-planner")
-            LangChainInstrumentor().instrument(tracer_provider=tp, include_chains=True, include_agents=True, include_tools=True)
+            # Register with Arize AX for observability
+            tp = register(
+                space_id=space_id,
+                api_key=api_key,
+                project_name="headsup-news-agent"  # Updated project name
+            )
+            # Instrument LangChain for automatic tracing of agents, chains, and tools
+            LangChainInstrumentor().instrument(
+                tracer_provider=tp,
+                include_chains=True,
+                include_agents=True,
+                include_tools=True
+            )
+            # Instrument LiteLLM for LLM call tracing
             LiteLLMInstrumentor().instrument(tracer_provider=tp, skip_dep_check=True)
-    except Exception:
-        pass
+            print("✅ Arize AX tracing initialized for HeadsUp News Agent")
+    except Exception as e:
+        print(f"⚠️ Arize tracing not available: {e}")
 
 
 # ============================================================================

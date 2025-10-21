@@ -56,6 +56,7 @@ AI News Agent is a multi-agent AI system that monitors local crime and safety ne
 - OpenAI API key (or Google Gemini / OpenRouter)
 - PostgreSQL (production) or SQLite (development)
 - SendGrid API key (optional - for email delivery)
+- Arize AX credentials (optional - for observability & tracing)
 
 ### Installation
 
@@ -83,6 +84,8 @@ cp env.example .env
 # - SECRET_KEY (for JWT tokens)
 # - SENDGRID_API_KEY (optional - for emails)
 # - FROM_EMAIL (sender email address)
+# - ARIZE_SPACE_ID (optional - for observability)
+# - ARIZE_API_KEY (optional - for observability)
 ```
 
 4. **Run the server**
@@ -211,7 +214,7 @@ Content-Type: application/json
 Response: { "access_token": "...", "token_type": "bearer" }
 ```
 
-### Digests
+### Digests 
 
 **Generate Digest**
 ```http
@@ -311,6 +314,37 @@ python -m uvicorn main:app --host 0.0.0.0 --port $PORT
 2. Check server logs for startup errors
 3. Test manual digest generation first
 4. Verify timezone configuration
+
+## Observability with Arize AX
+
+Your HeadsUp News Agent comes with built-in observability using Arize AX. This allows you to:
+
+- 🔍 **Visualize Agent Workflows**: See the complete execution flow of all 4 agents
+- 📊 **Track LLM Performance**: Monitor token usage, latency, and costs
+- 🐛 **Debug Issues**: View exact prompts, responses, and errors
+- 📈 **Analyze Patterns**: Understand which agents are slowest, which tools are most used
+
+### Quick Setup
+
+1. **Sign up for Arize**: https://app.arize.com/signup
+2. **Get your credentials** from Settings → API Keys
+3. **Add to environment variables**:
+   ```env
+   ARIZE_SPACE_ID=your-space-id
+   ARIZE_API_KEY=your-api-key
+   ```
+4. **Restart your server** and generate a digest
+5. **View traces** at https://app.arize.com/ under project "headsup-news-agent"
+
+### What Gets Traced
+
+Every digest generation creates a complete trace showing:
+- **Monitor Agent**: Search queries, API calls, articles found
+- **Relevance Agent**: Filtering logic, proximity calculations
+- **Summary Agent**: LLM calls for summarization
+- **Digest Agent**: Final synthesis and formatting
+
+For detailed setup instructions, see [ARIZE_SETUP_GUIDE.md](ARIZE_SETUP_GUIDE.md)
 
 ## License
 
