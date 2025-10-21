@@ -340,18 +340,26 @@ Location: {location}
             
             print("DEBUG: About to send email via SendGrid")
             # Send email
-            response = client.send(message)
-            print(f"DEBUG: SendGrid response status: {response.status_code}")
-            
-            if response.status_code in [200, 201, 202]:
-                print(f"Email sent successfully to {to_email}")
-                return True
-            else:
-                print(f"Failed to send email. Status: {response.status_code}")
-                return False
+            try:
+                response = client.send(message)
+                print(f"DEBUG: SendGrid response status: {response.status_code}")
+                
+                if response.status_code in [200, 201, 202]:
+                    print(f"Email sent successfully to {to_email}")
+                    return True
+                else:
+                    print(f"Failed to send email. Status: {response.status_code}")
+                    return False
+            except Exception as send_error:
+                print(f"SendGrid send error: {type(send_error).__name__}: {str(send_error)}")
+                import traceback
+                traceback.print_exc()
+                raise
                 
         except Exception as e:
             print(f"Error sending email to {to_email}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def send_test_email(self, to_email: str) -> bool:
