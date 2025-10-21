@@ -297,17 +297,9 @@ Location: {location}
             message.add_category("daily_digest")
             message.add_category("safety_news")
             
-            # Add custom args for tracking
-            message.custom_arg = [
-                {
-                    "key": "digest_id",
-                    "value": str(digest_id) if digest_id else "test"
-                },
-                {
-                    "key": "location",
-                    "value": location
-                }
-            ]
+            # Add custom args for tracking (optional metadata)
+            if digest_id:
+                message.custom_arg = {"digest_id": str(digest_id), "location": location}
             
             # Send email
             response = self.client.send(message)
