@@ -1677,13 +1677,17 @@ if _TRACING:
     try:
         space_id = os.getenv("ARIZE_SPACE_ID")
         api_key = os.getenv("ARIZE_API_KEY")
+        project_name = os.getenv("ARIZE_PROJECT_NAME", "headsup-news-agent")
+        
         if space_id and api_key:
-            # Register with Arize AX for observability
-            tp = register(
-                space_id=space_id,
-                api_key=api_key,
-                project_name="headsup-news-agent"
-            )
+            # Set environment variables for arize-otel to read automatically
+            os.environ["ARIZE_SPACE_ID"] = space_id
+            os.environ["ARIZE_API_KEY"] = api_key
+            os.environ["ARIZE_PROJECT_NAME"] = project_name
+            
+            # Register with Arize AX - it will read from environment variables
+            tp = register()
+            
             # Instrument LangChain for automatic tracing of agents, chains, and tools
             LangChainInstrumentor().instrument(
                 tracer_provider=tp,
@@ -1694,7 +1698,7 @@ if _TRACING:
             # Instrument LiteLLM for LLM call tracing
             LiteLLMInstrumentor().instrument(tracer_provider=tp, skip_dep_check=True)
             print("✅ Arize AX tracing initialized for HeadsUp News Agent")
-            print(f"   Project: headsup-news-agent | Space: {space_id[:20]}...")
+            print(f"   Project: {project_name} | Space: {space_id[:20]}...")
     except Exception as e:
         print(f"⚠️ Arize tracing not available: {e}")
 
