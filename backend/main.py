@@ -1694,6 +1694,7 @@ if _TRACING:
             # Instrument LiteLLM for LLM call tracing
             LiteLLMInstrumentor().instrument(tracer_provider=tp, skip_dep_check=True)
             print("✅ Arize AX tracing initialized for HeadsUp News Agent")
+            print(f"   Project: headsup-news-agent | Space: {space_id[:20]}...")
     except Exception as e:
         print(f"⚠️ Arize tracing not available: {e}")
 
