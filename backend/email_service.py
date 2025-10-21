@@ -294,10 +294,15 @@ Location: {location}
 """
             if has_incidents:
                 for idx, article in enumerate(articles[:5], 1):
-                    plain_text += f"{idx}. {article.get('title', 'Untitled')}\n"
-                    plain_text += f"   {article.get('summary', '')}\n"
-                    if article.get('url') and article.get('url') != '#':
-                        plain_text += f"   Read more: {article['url']}\n"
+                    # Handle both dict and object access
+                    title = article.get('title', 'Untitled') if isinstance(article, dict) else getattr(article, 'title', 'Untitled')
+                    summary = article.get('summary', '') if isinstance(article, dict) else getattr(article, 'summary', '')
+                    url = article.get('url') if isinstance(article, dict) else getattr(article, 'url', None)
+                    
+                    plain_text += f"{idx}. {title}\n"
+                    plain_text += f"   {summary}\n"
+                    if url and url != '#':
+                        plain_text += f"   Read more: {url}\n"
                     plain_text += "\n"
             else:
                 plain_text += "All Clear! No significant safety incidents to report today.\n\n"
