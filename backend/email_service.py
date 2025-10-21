@@ -259,6 +259,12 @@ class EmailService:
                 return False
             
             from_email = _get_from_email()
+            print(f"DEBUG: Preparing email from {from_email} to {to_email}")
+            print(f"DEBUG: Articles type: {type(articles)}, count: {len(articles)}")
+            if articles:
+                print(f"DEBUG: First article type: {type(articles[0])}")
+                print(f"DEBUG: First article: {articles[0]}")
+            
             # Prepare template data with actual Render domain
             app_domain = os.getenv("APP_DOMAIN", "https://ai-news-agent-foz7.onrender.com")
             dashboard_url = f"{app_domain}/dashboard.html"
@@ -272,6 +278,7 @@ class EmailService:
             # Format date
             date_str = datetime.now().strftime("%A, %B %d, %Y")
             
+            print("DEBUG: About to render HTML template")
             # Render HTML template
             template = Template(EMAIL_TEMPLATE)
             html_content = template.render(
@@ -283,6 +290,7 @@ class EmailService:
                 dashboard_url=dashboard_url,
                 unsubscribe_url=unsubscribe_url
             )
+            print("DEBUG: HTML template rendered successfully")
             
             # Create plain text version (improves deliverability)
             plain_text = f"""
@@ -310,6 +318,8 @@ Location: {location}
             plain_text += f"\nView dashboard: {dashboard_url}\n"
             plain_text += f"Manage preferences: {unsubscribe_url}\n"
             
+            print("DEBUG: Plain text version created successfully")
+            
             # Create email message with personalized subject
             subject = f"Your Daily {location} Safety Update - {datetime.now().strftime('%b %d, %Y')}"
             
@@ -329,8 +339,10 @@ Location: {location}
             if digest_id:
                 message.custom_arg = {"digest_id": str(digest_id), "location": location}
             
+            print("DEBUG: About to send email via SendGrid")
             # Send email
             response = client.send(message)
+            print(f"DEBUG: SendGrid response status: {response.status_code}")
             
             if response.status_code in [200, 201, 202]:
                 print(f"Email sent successfully to {to_email}")
