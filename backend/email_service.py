@@ -339,6 +339,16 @@ Location: {location}
             # Tracking can be done via categories and SendGrid dashboard
             
             print("DEBUG: About to send email via SendGrid")
+            # Debug: Print the message payload
+            try:
+                message_dict = message.get()
+                print(f"DEBUG: Message payload keys: {list(message_dict.keys())}")
+                print(f"DEBUG: From: {message_dict.get('from')}")
+                print(f"DEBUG: Personalizations: {message_dict.get('personalizations')}")
+                print(f"DEBUG: Categories: {message_dict.get('categories')}")
+            except Exception as debug_err:
+                print(f"DEBUG: Could not serialize message: {debug_err}")
+            
             # Send email
             try:
                 response = client.send(message)
@@ -354,14 +364,27 @@ Location: {location}
                     return False
             except Exception as send_error:
                 print(f"SendGrid send error: {type(send_error).__name__}: {str(send_error)}")
-                # Try to get more details from the error
-                if hasattr(send_error, 'body'):
-                    print(f"Error body: {send_error.body}")
-                if hasattr(send_error, 'reason'):
-                    print(f"Error reason: {send_error.reason}")
+                # Try to get more details from the HTTP error
+                if hasattr(send_error, 'to_dict'):
+                    print(f"Error dict: {send_error.to_dict}")
+                # For python_http_client exceptions, check the response
+                import sys
+                exc_info = sys.exc_info()
+                if exc_info[2] is not None:
+                    # Get the last frame which should have the response
+                    import traceback as tb
+                    for frame_summary in tb.extract_tb(exc_info[2]):
+                        print(f"Frame: {frame_summary.filename}:{frame_summary.lineno} in {frame_summary.name}")
+                
+                # The error message might be in the exception args
+                if hasattr(send_error, 'args') and len(send_error.args) > 0:
+                    print(f"Error args: {send_error.args}")
+                
                 import traceback
                 traceback.print_exc()
-                raise
+                
+                # Don't raise, return False so we can see the error message
+                return False
                 
         except Exception as e:
             print(f"Error sending email to {to_email}: {str(e)}")
