@@ -1712,6 +1712,19 @@ def test_email(current_user: models.User = Depends(auth.get_current_user)):
     """Send a test email to verify SendGrid configuration."""
     from email_service import email_service
     
+    # Debug: Check if API key is loaded
+    api_key = os.getenv("SENDGRID_API_KEY")
+    from_email = os.getenv("FROM_EMAIL")
+    print(f"DEBUG: SENDGRID_API_KEY present: {bool(api_key)}")
+    print(f"DEBUG: FROM_EMAIL: {from_email}")
+    print(f"DEBUG: email_service.enabled: {email_service.enabled}")
+    
+    if not api_key:
+        return {
+            "status": "error",
+            "message": "SENDGRID_API_KEY environment variable not found"
+        }
+    
     success = email_service.send_test_email(current_user.email)
     
     if success:
