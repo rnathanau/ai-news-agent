@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime
 from jinja2 import Template
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
+from sendgrid.helpers.mail import Mail, Email, To, Content, Category
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -332,8 +332,8 @@ Location: {location}
             )
             
             # Add categories for tracking and better deliverability
-            message.add_category("daily_digest")
-            message.add_category("safety_news")
+            message.add_category(Category("daily_digest"))
+            message.add_category(Category("safety_news"))
             
             # Note: custom_arg removed as it was causing serialization issues with SendGrid API
             # Tracking can be done via categories and SendGrid dashboard
