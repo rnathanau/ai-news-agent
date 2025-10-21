@@ -41,7 +41,7 @@ def migrate():
                 print("Adding delivery_slots column...")
                 session.execute(text("""
                     ALTER TABLE user_preferences 
-                    ADD COLUMN delivery_slots JSON DEFAULT '[]'::json
+                    ADD COLUMN delivery_slots JSON DEFAULT CAST('[]' AS json)
                 """))
                 session.commit()
                 print("✓ Added delivery_slots column")
@@ -63,9 +63,10 @@ def migrate():
                 for row in rows:
                     user_id, delivery_slot = row
                     # Convert single slot to JSON array format
+                    # Use CAST to avoid parameter binding conflicts
                     session.execute(text("""
                         UPDATE user_preferences 
-                        SET delivery_slots = :slots::json
+                        SET delivery_slots = CAST(:slots AS json)
                         WHERE id = :id
                     """), {"slots": f'["{delivery_slot}"]', "id": user_id})
                 
@@ -78,10 +79,10 @@ def migrate():
             print("Setting default delivery_slots for rows without any...")
             result = session.execute(text("""
                 UPDATE user_preferences 
-                SET delivery_slots = '["morning"]'::json
+                SET delivery_slots = CAST('["morning"]' AS json)
                 WHERE delivery_slots IS NULL 
-                   OR delivery_slots::text = '[]'
-                   OR delivery_slots::text = 'null'
+                   OR CAST(delivery_slots AS text) = '[]'
+                   OR CAST(delivery_slots AS text) = 'null'
             """))
             session.commit()
             print(f"✓ Set defaults for {result.rowcount} rows")
