@@ -349,9 +349,16 @@ Location: {location}
                     return True
                 else:
                     print(f"Failed to send email. Status: {response.status_code}")
+                    print(f"Response body: {response.body}")
+                    print(f"Response headers: {response.headers}")
                     return False
             except Exception as send_error:
                 print(f"SendGrid send error: {type(send_error).__name__}: {str(send_error)}")
+                # Try to get more details from the error
+                if hasattr(send_error, 'body'):
+                    print(f"Error body: {send_error.body}")
+                if hasattr(send_error, 'reason'):
+                    print(f"Error reason: {send_error.reason}")
                 import traceback
                 traceback.print_exc()
                 raise
