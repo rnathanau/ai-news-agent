@@ -1680,9 +1680,9 @@ if _TRACING:
         if space_id and api_key:
             # Register with Arize AX for observability
             tp = register(
-                space_id=space_id,
+                space_key=space_id,  # Arize uses 'space_key' not 'space_id'
                 api_key=api_key,
-                project_name="headsup-news-agent"  # Updated project name
+                model_id="headsup-news-agent"  # Project name
             )
             # Instrument LangChain for automatic tracing of agents, chains, and tools
             LangChainInstrumentor().instrument(
