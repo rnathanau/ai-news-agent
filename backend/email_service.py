@@ -10,10 +10,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Email configuration
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "notifications@newsagent.com")
-ENABLE_EMAIL = bool(SENDGRID_API_KEY)  # Only enable if API key is set
+def _get_sendgrid_api_key():
+    """Get SendGrid API key from environment."""
+    return os.getenv("SENDGRID_API_KEY")
+
+def _get_from_email():
+    """Get FROM_EMAIL from environment."""
+    return os.getenv("FROM_EMAIL", "notifications@newsagent.com")
+
+def _is_email_enabled():
+    """Check if email is enabled (API key is set)."""
+    return bool(_get_sendgrid_api_key())
 
 
 # HTML Email Template
@@ -205,11 +212,20 @@ class EmailService:
     
     def __init__(self):
         """Initialize email service."""
-        self.enabled = ENABLE_EMAIL
-        if self.enabled:
-            self.client = SendGridAPIClient(SENDGRID_API_KEY)
-        else:
-            self.client = None
+        # Don't cache the client - create it on demand
+        pass
+    
+    def _get_client(self):
+        """Get SendGrid client (creates on demand)."""
+        api_key = _get_sendgrid_api_key()
+        if not api_key:
+            return None
+        return SendGridAPIClient(api_key)
+    
+    @property
+    def enabled(self):
+        """Check if email is enabled."""
+        return _is_email_enabled()
     
     def send_digest_email(
         self,
@@ -236,6 +252,13 @@ class EmailService:
             return False
         
         try:
+            # Get client dynamically
+            client = self._get_client()
+            if not client:
+                print("SendGrid client not available")
+                return False
+            
+            from_email = _get_from_email()
             # Prepare template data with actual Render domain
             app_domain = os.getenv("APP_DOMAIN", "https://ai-news-agent-foz7.onrender.com")
             dashboard_url = f"{app_domain}/dashboard.html"
@@ -286,7 +309,7 @@ Location: {location}
             subject = f"Your Daily {location} Safety Update - {datetime.now().strftime('%b %d, %Y')}"
             
             message = Mail(
-                from_email=Email(FROM_EMAIL, "Safety News Alert"),
+                from_email=Email(from_email, "HeadsUp Safety Alert"),
                 to_emails=To(to_email),
                 subject=subject,
                 plain_text_content=Content("text/plain", plain_text),
@@ -302,7 +325,7 @@ Location: {location}
                 message.custom_arg = {"digest_id": str(digest_id), "location": location}
             
             # Send email
-            response = self.client.send(message)
+            response = client.send(message)
             
             if response.status_code in [200, 201, 202]:
                 print(f"Email sent successfully to {to_email}")
