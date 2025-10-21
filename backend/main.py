@@ -19,7 +19,7 @@ import models, schemas, auth
 
 # Minimal observability via Arize/OpenInference (optional)
 try:
-    from arize.otel import register
+    from arize.otel import register as arize_register
     from openinference.instrumentation.langchain import LangChainInstrumentor
     from openinference.instrumentation.litellm import LiteLLMInstrumentor
     from openinference.instrumentation import using_prompt_template, using_metadata, using_attributes
@@ -1686,7 +1686,7 @@ if _TRACING:
             os.environ["ARIZE_PROJECT_NAME"] = project_name
             
             # Register with Arize AX - it will read from environment variables
-            tp = register()
+            tp = arize_register()
             
             # Instrument LangChain for automatic tracing of agents, chains, and tools
             LangChainInstrumentor().instrument(
