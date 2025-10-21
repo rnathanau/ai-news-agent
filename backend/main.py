@@ -1227,7 +1227,7 @@ def summary_agent(state: NewsDigestState) -> NewsDigestState:
 
 
 def digest_agent(state: NewsDigestState) -> NewsDigestState:
-    """Digest agent: Synthesizes top 3 articles into a cohesive morning briefing."""
+    """Digest agent: Synthesizes top 3 articles into a cohesive safety briefing."""
     req = state["digest_request"]
     location = req["location"]
     article_summaries = state.get("article_summaries", [])
@@ -1241,10 +1241,10 @@ def digest_agent(state: NewsDigestState) -> NewsDigestState:
         }
     
     prompt_t = (
-        "Create a morning safety briefing for {location}.\n"
+        "Create a safety briefing for {location}.\n"
         "Synthesize these {num_articles} incident summaries into a clear, informative digest.\n"
         "Format:\n"
-        "- Brief overview\n"
+        "- Brief overview (do NOT include time of day like 'morning' or 'evening')\n"
         "- Top 3 incidents with key details\n"
         "- Safety recommendations\n\n"
         "Articles:\n{articles_text}"
