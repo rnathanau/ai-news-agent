@@ -335,9 +335,8 @@ Location: {location}
             message.add_category("daily_digest")
             message.add_category("safety_news")
             
-            # Add custom args for tracking (optional metadata)
-            if digest_id:
-                message.custom_arg = {"digest_id": str(digest_id), "location": location}
+            # Note: custom_arg removed as it was causing serialization issues with SendGrid API
+            # Tracking can be done via categories and SendGrid dashboard
             
             print("DEBUG: About to send email via SendGrid")
             # Send email
